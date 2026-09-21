@@ -43,7 +43,7 @@ class AddingUserController extends BaseController
             return $this->redirect(
                 $request,
                 $response,
-                "adding.index"
+                'adding.index'
             );
         }
 
@@ -56,7 +56,7 @@ class AddingUserController extends BaseController
             return $this->redirect(
                 $request,
                 $response,
-                "adding.index"
+                'adding.index'
             );
         }
 
@@ -69,7 +69,7 @@ class AddingUserController extends BaseController
             return $this->redirect(
                 $request,
                 $response,
-                "adding.index"
+                'adding.index'
             );
         }
 
@@ -82,7 +82,7 @@ class AddingUserController extends BaseController
             return $this->redirect(
                 $request,
                 $response,
-                "adding.index"
+                'adding.index'
             );
         }
 
@@ -95,7 +95,7 @@ class AddingUserController extends BaseController
             return $this->redirect(
                 $request,
                 $response,
-                "adding.index"
+                'adding.index'
             );
         }
 
@@ -108,7 +108,19 @@ class AddingUserController extends BaseController
             return $this->redirect(
                 $request,
                 $response,
-                "adding.index"
+                'adding.index'
+            );
+        }
+
+        if (!preg_match('/^\d{10}$/', $phoneNumber)) {
+
+            $_SESSION['error'] =
+                "A customer can't have a phone number of this size or of this format. e.g: 1231231234";
+
+            return $this->redirect(
+                $request,
+                $response,
+                'adding.index'
             );
         }
 
@@ -126,7 +138,7 @@ class AddingUserController extends BaseController
         return $this->redirect(
             $request,
             $response,
-            "adding.index"
+            'adding.index'
         );
     }
 }

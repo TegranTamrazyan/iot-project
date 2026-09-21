@@ -2,11 +2,38 @@
 
 use App\Helpers\ViewHelper;
 
-// Load header layout
-$page_title = "Add User";
-ViewHelper::loadHeader($page_title);
+ViewHelper::loadHeader('User Insertion');
+ViewHelper::loadJsScripts();
 
+if (isset($_SESSION['error'])) {
 ?>
+
+    <div style="position: fixed; bottom: 10%; left: 50%; transform: translateX(-50%); z-index: 9999;">
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <strong>FAILURE!</strong> <?= $_SESSION['error'] ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    </div>
+
+    <?php unset($_SESSION['error']) ?>
+
+<?php
+}
+if (isset($_SESSION['success'])) {
+?>
+    <div style="position: fixed; bottom: 10%; left: 50%; transform: translateX(-50%); z-index: 9999;">
+        <div class="alert alert-success warning alert-dismissible fade show" role="alert">
+            <strong>SUCCESS!</strong> <?= $_SESSION['success'] ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    </div>
+
+    <?php unset($_SESSION['success']) ?>
+
+<?php
+}
+?>
+
 
 <div class="container" style="max-width:500px; margin:60px auto;">
 
@@ -14,12 +41,12 @@ ViewHelper::loadHeader($page_title);
         Add a customer!
     </h3>
 
-    <form method="POST" action="/adding">
+    <form method="POST" action="/iot-proj/adding">
 
         <!-- Full Name -->
         <div class="form-floating mb-3">
             <input
-                class="form-control rounded-pill"
+                class="form-control rounded"
                 placeholder="Name"
                 type="text"
                 name="customer_name"
@@ -33,7 +60,7 @@ ViewHelper::loadHeader($page_title);
         <!-- Email -->
         <div class="form-floating mb-3">
             <input
-                class="form-control rounded-pill"
+                class="form-control rounded"
                 placeholder="Email"
                 type="email"
                 name="email_address"
@@ -47,7 +74,7 @@ ViewHelper::loadHeader($page_title);
         <!-- Phone Number -->
         <div class="form-floating mb-3">
             <input
-                class="form-control rounded-pill"
+                class="form-control rounded"
                 placeholder="Phone Number"
                 type="tel"
                 name="telephone_number"
@@ -61,7 +88,7 @@ ViewHelper::loadHeader($page_title);
         <!-- Home Address -->
         <div class="form-floating mb-3">
             <input
-                class="form-control rounded-pill"
+                class="form-control rounded"
                 placeholder="Address"
                 type="text"
                 name="address"
@@ -75,7 +102,7 @@ ViewHelper::loadHeader($page_title);
         <!-- Submit Button -->
         <button
             type="submit"
-            class="btn btn-primary w-100 rounded-pill py-2"
+            class="btn btn-primary w-100 rounded py-2"
             style="
                 padding:10px 20px;
                 background:#1b8eda;
