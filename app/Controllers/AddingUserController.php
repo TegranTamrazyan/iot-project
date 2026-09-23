@@ -40,6 +40,7 @@ class AddingUserController extends BaseController
         ) {
             $_SESSION['error'] = "All fields are required.";
 
+
             return $this->redirect(
                 $request,
                 $response,
@@ -66,6 +67,7 @@ class AddingUserController extends BaseController
             $_SESSION['error'] =
                 "Please enter a valid email address.";
 
+
             return $this->redirect(
                 $request,
                 $response,
@@ -79,6 +81,7 @@ class AddingUserController extends BaseController
             $_SESSION['error'] =
                 "A customer with this email already exists.";
 
+
             return $this->redirect(
                 $request,
                 $response,
@@ -91,7 +94,7 @@ class AddingUserController extends BaseController
 
             $_SESSION['error'] =
                 "A customer with this name already exists.";
-
+            
             return $this->redirect(
                 $request,
                 $response,
@@ -132,8 +135,8 @@ class AddingUserController extends BaseController
             'email_address' => $email
         ]);
 
-        $_SESSION['success'] =
-            "Customer added successfully.";
+        $_SESSION['success'] = "Customer added successfully.";
+
 
         return $this->redirect(
             $request,

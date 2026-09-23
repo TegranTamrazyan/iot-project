@@ -28,4 +28,5 @@ $container = (new ContainerBuilder())
 
 // Create and return an App instance.
 $app = $container->get(App::class);
+
 return $app;

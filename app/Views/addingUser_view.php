@@ -14,9 +14,10 @@ if (isset($_SESSION['error'])) {
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     </div>
-
+    
     <?php unset($_SESSION['error']) ?>
-
+    <?php shell_exec('python3 ' . __DIR__ . '/../../scripting/error_led.py'); ?>
+    
 <?php
 }
 if (isset($_SESSION['success'])) {
@@ -29,6 +30,7 @@ if (isset($_SESSION['success'])) {
     </div>
 
     <?php unset($_SESSION['success']) ?>
+    <?php shell_exec('python3 ' . __DIR__ . '/../../scripting/success_led.py'); ?>
 
 <?php
 }
@@ -41,7 +43,7 @@ if (isset($_SESSION['success'])) {
         Add a customer!
     </h3>
 
-    <form method="POST" action="/iot-proj/adding">
+    <form method="POST" action="/iot-project/adding">
 
         <!-- Full Name -->
         <div class="form-floating mb-3">
