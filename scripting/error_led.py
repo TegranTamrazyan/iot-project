@@ -2,9 +2,9 @@ import RPi.GPIO as GPIO
 import time
 GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
-LED = 17
+LED = 17 #could be changed imo
 GPIO.setup(LED, GPIO.OUT)
-BUZZER = 12
+BUZZER = 12 #subject to change please check before executing
 GPIO.setup(BUZZER, GPIO.OUT)
 pulse = GPIO.PWM(BUZZER, 100)  # 100Hz frequency
 pulse.start(0)
