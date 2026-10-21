@@ -1,5 +1,6 @@
 # Slim Framework Starter Template
 
+
 A lightweight MVC web application starter template built on top of the Slim PHP microframework. Ideal for projects that require Slim's simplicity without sacrificing the benefits of a clean MVC architecture.
 
 ## Why Using this Template?
@@ -285,3 +286,14 @@ The application's bootstrap process and structure of this starter template is ba
 This project is open-sourced under the MIT License. See the `LICENSE` file for the full details.
 
 ---
+
+## Refrigerator IoT dashboard
+
+The refrigerator-monitoring additions are documented in [`docs/fridge_iot_setup.md`](docs/fridge_iot_setup.md).
+
+- Dashboard view: `app/Views/fridge_dashboard/`; dashboard controllers: `app/Controllers/FridgeDashboard/`; database connection/model: `app/Domain/Models/FridgeDashboardModel.php`. Public entry points remain in `public/fridge-dashboard/` (open `/fridge-dashboard/` on your web server).
+- Raspberry Pi MQTT/email/motor controller: `scripts/fridge_iot/controller.py`
+- ESP32 sketch: `scripts/fridge_iot/esp32/fridge_sensor.ino`
+- IoT database tables: `data/fridge_iot_schema.sql` (uses the existing `iot` database and does not modify `customers`)
+
+Configure `scripts/fridge_iot/.env` to match the database credentials in `config/env.php` before starting the Python controller.

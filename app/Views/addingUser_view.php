@@ -16,7 +16,7 @@ if (isset($_SESSION['error'])) {
     </div>
     
     <?php unset($_SESSION['error']) ?>
-    <?php shell_exec('python3 ' . __DIR__ . '/../../scripting/error_led.py'); ?>
+    <?php shell_exec('python3 ' . __DIR__ . '/../../scripts/error_led.py'); ?>
     
 <?php
 }
@@ -30,7 +30,7 @@ if (isset($_SESSION['success'])) {
     </div>
 
     <?php unset($_SESSION['success']) ?>
-    <?php shell_exec('python3 ' . __DIR__ . '/../../scripting/success_led.py'); ?>
+    <?php shell_exec('python3 ' . __DIR__ . '/../../scripts/success_led.py'); ?>
 
 <?php
 }
