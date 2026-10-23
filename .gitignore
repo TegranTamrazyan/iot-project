@@ -13,6 +13,7 @@ node_modules/
 .history/
 *.code-workspace
 #.vscode
+#.venv
 
 # Directories holding app-generated files.
 # Keep the logs/ directory
@@ -68,3 +69,4 @@ app/Domain/Models/TestModel.php
 app/Views/testView.php
 docs/FileUploadHelper.php
 
+.venv
