@@ -1,6 +1,3 @@
-<script src="/books-app/public/assets/js/main.js"></script>
-
 <?php
-// TODO: add your reusable JavaScript imports here.
-
-
+// The original starter template referenced /books-app/ JavaScript.
+// No global scripts are needed; the existing fridge dashboard has its own JS.

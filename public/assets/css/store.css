@@ -1,0 +1,8 @@
+body{font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:#17223b}
+.store-hero{background:linear-gradient(125deg,#112d4b,#174f71);color:white;border-radius:1.1rem}
+.store-card{border:1px solid #e7ebef;border-radius:1.1rem;box-shadow:0 8px 24px rgba(16,45,75,.05)}
+.metric-number{font-size:2rem;font-weight:750;letter-spacing:-.05em}.table thead th{color:#60748c;font-size:.82rem;text-transform:uppercase;letter-spacing:.04em}
+.unit-chip{display:inline-block;background:#eef4fa;color:#2c5d85;border-radius:8px;padding:.2rem .55rem;margin:.15rem .2rem .15rem 0;font-size:.82rem}
+.money{font-variant-numeric:tabular-nums}.membership-card{background:linear-gradient(120deg,#102e4e,#24628f);color:white;border-radius:1.25rem;padding:2rem;max-width:450px;box-shadow:0 13px 32px rgba(16,45,75,.18)}
+.card-label{color:#c5d9e9;letter-spacing:.12em;font-size:.73rem;text-transform:uppercase}.member-number{font-size:2rem;letter-spacing:.13em;font-weight:700}
+.form-control:focus{border-color:#61a6cf;box-shadow:0 0 0 .2rem rgba(37,107,151,.15)}
