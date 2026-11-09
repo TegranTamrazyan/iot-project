@@ -6,7 +6,9 @@ ViewHelper::loadJsScripts();
 ?>
 
 <div class="container mt-4">
-    <h1 class="text-center">Refrigerator Monitor</h1>
+    <section class="store-hero p-4 p-md-5 mb-4 d-flex justify-content-between flex-wrap gap-3">
+  <div><h1 class="fw-bold display-6 mb-0 text-center">Refrigerator Monitor</h1></div>
+ </section>
 
     <h2 class="text-center mt-4 mb-3">Sensor Readings</h2>
 
@@ -14,7 +16,7 @@ ViewHelper::loadJsScripts();
     <div class="row g-3">
         <?php foreach (['Frig1', 'Frig2'] as $fridge): ?>
             <div class="col-md-6">
-                <div class="card p-3 h-100">
+                <div class="card p-3 h-100 rounded p-4">
                     <h3><?= $fridge ?></h3>
 
                     <p>Temperature: <span id="<?= $fridge ?>-temp">--</span> °C</p>
