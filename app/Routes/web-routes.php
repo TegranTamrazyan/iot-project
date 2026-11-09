@@ -7,8 +7,13 @@ use App\Controllers\UserController;
 use App\Controllers\FridgeDashboardController;
 use App\Controllers\CheckoutController;
 use App\Helpers\Core\DateTimeHelper;
+use App\Middleware\AdminMiddleware;
+use App\Middleware\AuthMiddleware;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
+
+ini_set('display_errors', '1');
+ini_set('display_startup_errors', '1');
 
 return static function (Slim\App $app): void {
     // No /iot-project-main prefix: run `php -S localhost:8080 -t public`.
@@ -44,13 +49,16 @@ return static function (Slim\App $app): void {
     $app->get('/checkout/done',[CheckoutController::class,'done']);
     $app->post('/checkout/api/scan',[CheckoutController::class,'scanApi']);
 
+    $adminMiddleware = new AuthMiddleware($app->getResponseFactory());
+
     // Preserve the original fridge dashboard and its API routes.
-    $app->get('/fridge-dashboard',[FridgeDashboardController::class,'view_fridge_dashboard'])
-        ->setName('fridge-dashboard.index');
-    $app->get('/fridge-dashboard/data',[FridgeDashboardController::class,'get_dashboard_data'])
-        ->setName('fridge-dashboard.data');
-    $app->post('/fridge-dashboard/fan',[FridgeDashboardController::class,'update_fan'])
-        ->setName('fridge-dashboard.fan');
-    $app->post('/fridge-dashboard/threshold',[FridgeDashboardController::class,'update_threshold'])
-        ->setName('fridge-dashboard.threshold');
+    $app->group('/fridge-dashboard', function($group) {
+        $group->get('', [FridgeDashboardController::class, 'view_fridge_dashboard']);
+
+        $group->get('/data', [FridgeDashboardController::class, 'get_dashboard_data']);
+
+        $group->post('/fan', [FridgeDashboardController::class, 'update_fan']);
+
+        $group->post('/threshold', [FridgeDashboardController::class, 'update_threshold']);
+    })->add($adminMiddleware);
 };

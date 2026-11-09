@@ -61,19 +61,26 @@ class UserController extends BaseController
             'error'=>(string)($req->getQueryParams()['error']??'')]);
     }
 
-    public function login(Request $req,Response $res): Response
+    public function login(Request $req, Response $res): Response
     {
-        if ($bad=$this->csrfFailure($req,$res)) return $bad;
-        $data=(array)($req->getParsedBody()??[]);
-        $email=strtolower(trim((string)($data['email_address']??'')));
-        $password=(string)($data['password']??'');
-        $user=$this->users->getUserByEmail($email);
-        if (!$user || !password_verify($password,(string)$user['password_hash']))
+        if ($bad = $this->csrfFailure($req, $res)) return $bad;
+        
+        $data = $req->getParsedBody();
+        $email = strtolower(trim(($data['email_address'] ?? '')));
+        $password = $data['password'] ?? '';
+
+        $user= $this->users->getUserByEmail($email);
+        if (!$user || !password_verify($password,$user['password_hash'])) {
             return $this->go($res,'login?error='.rawurlencode('Incorrect email or password.'));
+        }
         session_regenerate_id(true);
-        unset($_SESSION['last_checkout_order'],$_SESSION['checkout_review_hash']);
-        $_SESSION['customer_id']=(int)$user['customer_id'];
-        return $this->go($res,'account');
+
+        unset($_SESSION['last_checkout_order'], $_SESSION['checkout_review_hash']);
+        $_SESSION['customer_id'] = $user['customer_id'];
+        $_SESSION['is_logged_in'] = true;
+        $_SESSION['is_admin'] = $user['is_admin'] > 0 ? true : false;
+    
+        return $this->go($res, 'account');
     }
 
     public function account(Request $req,Response $res): Response
