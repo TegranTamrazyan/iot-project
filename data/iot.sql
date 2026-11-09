@@ -27,13 +27,40 @@ SET time_zone = "+00:00";
 -- Table structure for table `customers`
 --
 
-CREATE TABLE `customers` (
-  `customer_id` int(11) NOT NULL,
-  `customer_name` varchar(100) NOT NULL,
-  `address` varchar(100) NOT NULL,
-  `telephone_number` varchar(100) NOT NULL,
-  `email_address` varchar(100) NOT NULL
+CREATE DATABASE IF NOT EXISTS iot;
+USE iot;
+
+CREATE TABLE IF NOT EXISTS customers (
+  customer_id int(11) NOT NULL,
+  customer_name varchar(100) NOT NULL,
+  address varchar(100) NOT NULL,
+  telephone_number varchar(100) NOT NULL,
+  email_address varchar(100) NOT NULL,
+  password_hash varchar(255) NOT NULL,
+  membership_code varchar(6) NOT NULL,
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS receipts (
+  receipt_id int(11) NOT NULL AUTO_INCREMENT,
+  customer_id int(11) NOT NULL,
+  receipt_date datetime NOT NULL,
+  total_amount decimal(10,2) NOT NULL,
+  PRIMARY KEY (receipt_id),
+  FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS receipt_items (
+  receipt_item_id int(11) NOT NULL AUTO_INCREMENT,
+  receipt_id int(11) NOT NULL,
+  product_id int(11) NOT NULL,
+  quantity int(11) NOT NULL,
+  unit_price decimal(10,2) NOT NULL,
+  subtotal decimal(10,2) NOT NULL,
+  PRIMARY KEY (receipt_item_id),
+  FOREIGN KEY (receipt_id) REFERENCES receipts(receipt_id),
+  FOREIGN KEY (product_id) REFERENCES products(product_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 
 CREATE TABLE IF NOT EXISTS sensor_readings (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -66,9 +93,9 @@ CREATE TABLE IF NOT EXISTS fan_state (
 -- Dumping data for table `customers`
 --
 
-INSERT INTO `customers` (`customer_id`, `customer_name`, `address`, `telephone_number`, `email_address`) VALUES
-(1, 'Tegran', '2222', '1231231234', 'teg@gmail.com'),
-(3, 'TegranT', '122', '1112223333', 'teg@gmail.com2');
+-- INSERT INTO `customers` (`customer_id`, `customer_name`, `address`, `telephone_number`, `email_address`) VALUES
+-- (1, 'Tegran', '2222', '1231231234', 'teg@gmail.com'),
+-- (3, 'TegranT', '122', '1112223333', 'teg@gmail.com2');
 
 INSERT INTO fan_state (id, status) VALUES (1, 'OFF')
 ON DUPLICATE KEY UPDATE id = VALUES(id);
@@ -85,6 +112,7 @@ ALTER TABLE `customers`
   ADD UNIQUE KEY `unique_customers_customer_name` (`customer_name`),
   ADD UNIQUE KEY `unique_customers_telephonenumber` (`telephone_number`),
   ADD UNIQUE KEY `unique_customers_emailaddress` (`email_address`);
+  ADD UNIQUE KEY `unique_customers_membership_code` (`membership_code`);
 
 --
 -- AUTO_INCREMENT for dumped tables
