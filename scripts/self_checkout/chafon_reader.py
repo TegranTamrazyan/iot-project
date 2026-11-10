@@ -1,170 +1,84 @@
 
-import argparse
-import json
 import os
 import re
-import select
 import time
-from urllib.request import Request, urlopen
-from urllib.error import HTTPError, URLError
+import serial
 
-URL = os.getenv(
+os.environ.setdefault(
     "CHECKOUT_URL",
-    "http://127.0.0.1:8080/checkout/api/scan"
+    "http://localhost:8080/checkout/api/scan"
 )
-SCAN_KEY = os.getenv("CHECKOUT_SCAN_KEY", "")
 
-pending = set()
+from scan_client import send
 
+PORT = "/dev/ttyUSB0"
+BAUD = 115200
 
-def add_epc(value):
-    epc = value.strip().upper()
-
-    if not re.fullmatch(r"[0-9A-F]{1,24}", epc):
-        if epc:
-            print("Invalid EPC:", epc)
-        return
-
-    pending.add(epc)
+COMMAND = bytes.fromhex("0008220000000022")
 
 
-def send_scans():
-    if not pending:
-        return
+def read_rfid_tags(reader):
+    reader.reset_input_buffer()
 
-    epcs = sorted(pending)
+    start_time = time.monotonic()
+    last_poll = 0
+    raw_data = bytearray()
 
-    request = Request(
-        URL,
-        data=json.dumps({"epcs": epcs}).encode("utf-8"),
-        headers={
-            "Content-Type": "application/json",
-            "X-Checkout-Key": SCAN_KEY
-        },
-        method="POST"
+    while time.monotonic() - start_time < 2.0:
+        now = time.monotonic()
+
+        if now - last_poll >= 0.1:
+            reader.write(COMMAND)
+            last_poll = now
+
+        if reader.in_waiting > 0:
+            raw_data.extend(reader.read(reader.in_waiting))
+        else:
+            time.sleep(0.01)
+
+    raw_hex = raw_data.hex().upper()
+
+    epcs = re.findall(
+        r"(?:A0|E0)[A-F0-9]{22}",
+        raw_hex
     )
 
-    try:
-        with urlopen(request, timeout=5) as response:
-            result = json.load(response)
+    if raw_hex and not epcs:
+        print("Received data, but no EPCs matched:")
+        print(raw_hex[:200])
 
-        print("Added:", result.get("added", []))
-        print("Unknown:", result.get("unknown", []))
-        print("Ignored:", result.get("ignored", []))
-
-        pending.difference_update(epcs)
-
-    except (HTTPError, URLError, TimeoutError) as error:
-        print("Could not send scans:", error)
-
-
-def read_serial(device, baud, batch_seconds):
-    import serial
-
-    with serial.Serial(device, baud, timeout=0.1) as reader:
-        print("Reading Chafon serial output...")
-
-        last_send = time.monotonic()
-
-        while True:
-            raw = reader.readline()
-
-            if raw:
-                epc = raw.decode(
-                    "ascii", errors="ignore"
-                ).strip()
-                add_epc(epc)
-
-            if time.monotonic() - last_send >= batch_seconds:
-                send_scans()
-                last_send = time.monotonic()
-
-
-def read_keyboard(device, batch_seconds):
-    from evdev import InputDevice, ecodes
-
-    reader = InputDevice(device)
-
-    print("Reading Chafon keyboard output...")
-    print("Device:", reader.name)
-
-    buffer = ""
-    last_key = time.monotonic()
-    last_send = time.monotonic()
-
-    while True:
-        ready, _, _ = select.select([reader], [], [], 0.1)
-
-        if ready:
-            for event in reader.read():
-                if event.type != ecodes.EV_KEY:
-                    continue
-
-                if event.value != 1:
-                    continue
-
-                key = ecodes.KEY.get(event.code, "")
-
-                if key in ("KEY_ENTER", "KEY_KPENTER"):
-                    add_epc(buffer)
-                    buffer = ""
-                    continue
-
-                if key.startswith("KEY_KP"):
-                    character = key.replace("KEY_KP", "")
-                else:
-                    character = key.replace("KEY_", "")
-
-                if len(character) == 1:
-                    if character in "0123456789ABCDEF":
-                        buffer += character
-                        last_key = time.monotonic()
-
-        # Some readers don't send Enter after the EPC.
-        if buffer and time.monotonic() - last_key > 0.3:
-            add_epc(buffer)
-            buffer = ""
-
-        if time.monotonic() - last_send >= batch_seconds:
-            send_scans()
-            last_send = time.monotonic()
+    return sorted(set(epcs))
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    if not os.getenv("CHECKOUT_SCAN_KEY"):
+        print("CHECKOUT_SCAN_KEY is missing.")
+        return
 
-    parser.add_argument(
-        "mode",
-        choices=["serial", "keyboard"]
-    )
+    print("Connecting to Chafon CF600...")
 
-    parser.add_argument("device")
+    with serial.Serial(PORT, BAUD, timeout=0.2) as reader:
+        print("Chafon connected.")
+        print("Scanning RFID tags...")
 
-    parser.add_argument(
-        "--baud",
-        type=int,
-        default=115200
-    )
+        while True:
+            epcs = read_rfid_tags(reader)
 
-    parser.add_argument(
-        "--batch",
-        type=float,
-        default=1.0
-    )
+            if not epcs:
+                continue
 
-    args = parser.parse_args()
+            print("RFID tags detected:", epcs)
 
-    if not SCAN_KEY:
-        raise SystemExit("Set CHECKOUT_SCAN_KEY first.")
-
-    if args.mode == "serial":
-        read_serial(args.device, args.baud, args.batch)
-    else:
-        read_keyboard(args.device, args.batch)
+            try:
+                send({"epcs": epcs})
+            except Exception as error:
+                print("Checkout error:", error)
 
 
 if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\nScanner stopped.")
+        print("\nRFID scanning stopped.")
+    except serial.SerialException as error:
+        print("Serial connection error:", error)
