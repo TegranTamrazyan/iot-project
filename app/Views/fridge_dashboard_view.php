@@ -1,6 +1,7 @@
 <?php
 
 use App\Helpers\ViewHelper;
+use App\Helpers\Core\FlashMessage;
 
 $thresholds = $thresholds ?? ['Frig1' => 5.0, 'Frig2' => 5.0];
 $data_url = $data_url ?? BASE_URL . 'fridge-dashboard/data';
@@ -14,13 +15,14 @@ ViewHelper::loadHeader('Fridge Dashboard');
     <h2 class="mb-2">Fridge Dashboard</h2>
     <p class="text-muted">Live readings from both refrigerators. The dashboard refreshes every three seconds.</p>
 
-    <?php if (isset($_SESSION['error'])): ?>
+    <?= FlashMessage::render() ?>
+    <!-- <?php if (isset($_SESSION['error'])): ?>
         <div class="alert alert-warning alert-dismissible fade show" role="alert">
             <?= htmlspecialchars((string) $_SESSION['error'], ENT_QUOTES, 'UTF-8') ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
         <?php unset($_SESSION['error']); ?>
-    <?php endif; ?>
+    <?php endif; ?> -->
 
     <?php if (isset($_SESSION['success'])): ?>
         <div class="alert alert-success alert-dismissible fade show" role="alert">

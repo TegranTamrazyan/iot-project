@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Domain\Models\CheckoutModel;
 use App\Domain\Models\UserModel;
 use App\Helpers\CheckoutSecurity as Security;
+use App\Helpers\Core\FlashMessage;
+use App\Helpers\EmailHelper;
 use DI\Container;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -14,7 +17,7 @@ use Throwable;
 
 class UserController extends BaseController
 {
-    public function __construct(Container $container,private UserModel $users)
+    public function __construct(Container $container,private UserModel $users,private CheckoutModel $checkout)
     { parent::__construct($container); }
 
     private function go(Response $r,string $path): Response
@@ -69,16 +72,19 @@ class UserController extends BaseController
         $email = strtolower(trim(($data['email_address'] ?? '')));
         $password = $data['password'] ?? '';
 
-        $user= $this->users->getUserByEmail($email);
+        $user = $this->users->getUserByEmail($email);
         if (!$user || !password_verify($password,$user['password_hash'])) {
-            return $this->go($res,'login?error='.rawurlencode('Incorrect email or password.'));
+            // return $this->go($res,'login?error='.rawurlencode('Incorrect email or password.'));
+            FlashMessage::error('Incorrect email or password.');
+            return $this->go($res,'login');
         }
         session_regenerate_id(true);
 
         unset($_SESSION['last_checkout_order'], $_SESSION['checkout_review_hash']);
+        
         $_SESSION['customer_id'] = $user['customer_id'];
         $_SESSION['is_logged_in'] = true;
-        $_SESSION['is_admin'] = $user['is_admin'] > 0 ? true : false;
+        $_SESSION['is_admin'] = $user['is_admin'] > 0;
     
         return $this->go($res, 'account');
     }
@@ -100,8 +106,58 @@ class UserController extends BaseController
     public function logout(Request $req,Response $res): Response
     {
         if ($bad=$this->csrfFailure($req,$res)) return $bad;
-        unset($_SESSION['customer_id'], $_SESSION['last_checkout_order'],$_SESSION['checkout_review_hash']);
+        unset($_SESSION['customer_id'], $_SESSION['last_checkout_order'],$_SESSION['checkout_review_hash'], $_SESSION['customer_id'], $_SESSION['is_admin']);
+
         session_regenerate_id(true);
         return $this->go($res,'checkout');
     }
+
+    public function resendReceipt(
+        Request $request,
+        Response $response
+    ): Response {
+        // Check CSRF token
+        if ($bad = $this->csrfFailure($request, $response)) {
+            return $bad;
+        }
+
+        // Get submitted information
+        $body = (array)($request->getParsedBody() ?? []);
+
+        $orderId = (int)($body['order_id'] ?? 0);
+        $email = trim((string)($body['receipt_email'] ?? ''));
+
+        // Validate email
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            FlashMessage::error('Please enter a valid email address.');
+            return $this->go($response, 'account');
+        }
+
+        // Get logged-in customer
+        $customerId = (int)($_SESSION['customer_id'] ?? 0);
+
+        // Verify order belongs to customer
+        $order = $this->checkout->orderForSuccess($orderId);
+
+        if (!$order || (int)$order['customer_id'] !== $customerId) {
+            FlashMessage::error('That order does not belong to your account.');
+            return $this->go($response, 'account');
+        }
+
+        // Retrieve original purchased items
+        $items = $this->checkout->orderItems($orderId);
+
+        $receiptHtml = EmailHelper::buildReceiptHtml($order, $items);
+
+        // Send email
+        $sent = EmailHelper::sendReceipt($email, $receiptHtml);
+
+        if (!$sent) {
+            FlashMessage::error('Receipt could not be sent. Please try again.');
+            return $this->go($response, 'account');
+        }
+
+        FlashMessage::success('Receipt sent successfully.');
+        return $this->go($response, 'account');
+    }    
 }

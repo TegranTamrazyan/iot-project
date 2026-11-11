@@ -35,10 +35,11 @@ return static function (Slim\App $app): void {
     $app->get('/login',[UserController::class,'view_login_user'])->setName('login.view');
     $app->post('/login',[UserController::class,'login'])->setName('login.verify');
     $app->get('/account',[UserController::class,'account'])->setName('account.index');
+    $app->post('/account/resend-receipt',[UserController::class,'resendReceipt']);
     $app->post('/logout',[UserController::class,'logout']);
 
     // SELF CHECKOUT: cart, RFID batch, membership selection and simulated payment.
-    // No product CRUD, receipt views, email or notification system.
+    // Product CRUD and notification systems are intentionally omitted.
     $app->get('/checkout',[CheckoutController::class,'index']);
     $app->post('/checkout/add',[CheckoutController::class,'add']);
     $app->post('/checkout/remove',[CheckoutController::class,'remove']);
@@ -47,6 +48,7 @@ return static function (Slim\App $app): void {
     $app->get('/checkout/confirm',[CheckoutController::class,'confirm']);
     $app->post('/checkout/pay',[CheckoutController::class,'pay']);
     $app->get('/checkout/done',[CheckoutController::class,'done']);
+    $app->post('/checkout/email-receipt',[CheckoutController::class,'emailReceipt']);
     $app->post('/checkout/api/scan',[CheckoutController::class,'scanApi']);
 
     $adminMiddleware = new AuthMiddleware($app->getResponseFactory());

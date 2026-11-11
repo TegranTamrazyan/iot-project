@@ -1,4 +1,5 @@
 <?php
+use App\Helpers\Core\FlashMessage;
 use App\Helpers\ViewHelper;
 use App\Helpers\CheckoutSecurity;
 ViewHelper::loadHeader('Self Checkout');
@@ -9,7 +10,8 @@ $h=static fn($v)=>htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');
  <section class="store-hero p-4 p-md-5 mb-4 d-flex justify-content-between flex-wrap gap-3">
   <div><h1 class="fw-bold display-6 mb-0">Self-checkout</h1></div>
  </section>
- <?php if($error):?><div class="alert alert-danger" role="alert"><?= $h($error) ?></div><?php endif;?>
+ <?= FlashMessage::render() ?>
+ <!-- <?php if($error):?><div class="alert alert-danger" role="alert"><?= $h($error) ?></div><?php endif;?> -->
  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
   <div class="small text-muted">Auto refresh: <strong><?= $live?'On':'Off' ?></strong></div>
   <a href="<?= BASE_URL ?>checkout?live=<?= $live?'0':'1' ?>" class="btn btn-outline-secondary btn-sm"><?= $live?'Pause refresh':'Resume refresh' ?></a>

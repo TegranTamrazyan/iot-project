@@ -6,6 +6,8 @@ namespace App\Controllers;
 
 use App\Domain\Models\CheckoutModel;
 use App\Helpers\CheckoutSecurity as Security;
+use App\Helpers\Core\FlashMessage;
+use App\Helpers\EmailHelper;
 use DI\Container;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -114,18 +116,95 @@ class CheckoutController extends BaseController
             $id=$this->model->pay($customerId);
             unset($_SESSION['checkout_review_hash']);
             $_SESSION['last_checkout_order']=$id;
+
+            if ($customerId !== null) {
+                try {
+                    $customer = $this->model->memberById($customerId);
+                    $order = $this->model->orderForSuccess($id);
+                    if ($customer && $order && filter_var($customer['email_address'] ?? '', FILTER_VALIDATE_EMAIL)) {
+                        $items = $this->model->orderItems($id);
+                        $receipt = EmailHelper::buildReceiptHtml($order, $items);
+                        if (EmailHelper::sendReceipt((string)$customer['email_address'], $receipt)) {
+                            FlashMessage::success('Receipt to Email sent successfully. Check your inbox or spam folder.');
+                        } else {
+                            FlashMessage::error('Purchase complete, but we couldn’t send your receipt. Please check the email address or try again later.');
+                        }
+                    } else {
+                        FlashMessage::error('Purchase complete, but no valid email address is available for this account.');
+                    }
+                } catch (Throwable $emailError) {
+                    error_log('Receipt email error: ' . $emailError->getMessage());
+                    FlashMessage::error('Purchase complete, but we couldn’t send your receipt. Please check the email address or try again later.');
+                }
+            }
+
             return $this->go($response,'checkout/done');
         } catch(Throwable $e) { return $this->go($response,'checkout/confirm?error='.rawurlencode($e->getMessage())); }
     }
 
-    public function done(Request $request,Response $response): Response
+    public function done(Request $request, Response $response): Response
     {
-        $id=(int)($_SESSION['last_checkout_order']??0);
-        if (!$id) return $this->go($response,'checkout');
-        $order=$this->model->orderForSuccess($id);
-        if (!$order) return $this->go($response,'checkout');
-        // A short status page only; no receipts, receipt email or notifications.
-        return $this->render($response,'checkout/done.php',['order'=>$order]);
+        $id = (int)($_SESSION['last_checkout_order'] ?? 0);
+
+        if (!$id) {
+            return $this->go($response, 'checkout');
+        }
+        $order = $this->model->orderForSuccess($id);
+        if (!$order) {
+            return $this->go($response, 'checkout');
+        }
+
+        $items = $this->model->orderItems($id);
+        $customer = null;
+        if (!empty($order['customer_id'])) {
+            $customer = $this->model->memberById((int)$order['customer_id']);
+        }
+
+        return $this->render($response, 'checkout/done.php', [
+            'order' => $order,
+            'items' => $items,
+            'customer' => $customer,
+            'purchases' => [$order],
+            'purchaseItems' => [(int)$order['id'] => $items],
+        ]);
+    }
+
+    public function emailReceipt(Request $request, Response $response): Response
+    {
+        if ($bad = $this->validForm($request, $response)) {
+            return $bad;
+        }
+
+        $body = (array) ($request->getParsedBody() ?? []);
+        $orderId = (int) ($body['order_id'] ?? 0);
+        $email = trim((string) ($body['receipt_email'] ?? ''));
+        $lastOrderId = (int) ($_SESSION['last_checkout_order'] ?? 0);
+
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            FlashMessage::error('Please enter a valid email address.');
+            return $this->go($response, 'checkout/done');
+        }
+
+        if ($orderId < 1 || $orderId !== $lastOrderId) {
+            FlashMessage::error('That receipt is no longer available in this checkout session.');
+            return $this->go($response, 'checkout');
+        }
+
+        $order = $this->model->orderForSuccess($orderId);
+        if (!$order) {
+            FlashMessage::error('The receipt could not be found.');
+            return $this->go($response, 'checkout');
+        }
+
+        $items = $this->model->orderItems($orderId);
+        $receipt = EmailHelper::buildReceiptHtml($order, $items);
+        if (!EmailHelper::sendReceipt($email, $receipt)) {
+            FlashMessage::error('Receipt email could not be sent. Check the SMTP configuration and try again.');
+            return $this->go($response, 'checkout/done');
+        }
+
+        FlashMessage::success('email sent successful');
+        return $this->go($response, 'checkout/done');
     }
 
     /** Local scanner bridge: a UPC or many EPCs in a single JSON request. */

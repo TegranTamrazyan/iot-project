@@ -145,7 +145,7 @@ class CheckoutModel extends BaseModel
 
     public function memberById(int $id): array|false
     {
-        return $this->selectOne('SELECT customer_id,customer_name,membership_code
+        return $this->selectOne('SELECT customer_id,customer_name,email_address,membership_code
                                   FROM customers WHERE customer_id=?',[$id]);
     }
 
@@ -228,4 +228,20 @@ class CheckoutModel extends BaseModel
         return $this->selectOne('SELECT id,customer_id,points_earned,total,created_at
                                   FROM checkout_orders WHERE id=?',[$id]);
     }
+
+    public function orderItems(int $orderId): array
+    {
+        return $this->selectAll(
+            'SELECT product_id,
+                    product_name,
+                    SUM(quantity) AS quantity,
+                    unit_price,
+                    SUM(quantity * unit_price) AS subtotal
+            FROM checkout_order_items
+            WHERE order_id = ?
+            GROUP BY product_id, product_name, unit_price
+            ORDER BY product_name',
+            [$orderId]
+        );
+    }    
 }
