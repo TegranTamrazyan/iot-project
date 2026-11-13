@@ -43,6 +43,14 @@ $_SESSION['product_csrf'] = $csrf;
                         <label class="form-label">Producer</label>
                         <input type="text" class="form-control" name="producer_company" value="<?= $h($p['producer_company'] ?? '') ?>" required>
                     </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Add stock quantity</label>
+                        <input type="number" class="form-control" name="stock_quantity" min="0" value="0">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">EPCs (comma separated, max 24 chars each)</label>
+                        <input type="text" class="form-control" name="epcs" placeholder="000001, 000002">
+                    </div>
                     <div class="col-md-2 d-flex align-items-end">
                         <div class="form-check">
                             <input class="form-check-input" type="checkbox" name="active" value="1" <?= (!empty($p['active']) ? 'checked' : '') ?>>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Domain\Models\CheckoutModel;
+use App\Helpers\Core\FlashMessage;
 use DI\Container;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -28,16 +29,21 @@ class ProductController extends BaseController
     {
         $data = (array) ($request->getParsedBody() ?? []);
         try {
-            $this->model->createProduct([
+            $productId = $this->model->createProduct([
                 'name' => trim((string) ($data['name'] ?? '')),
                 'category' => trim((string) ($data['category'] ?? '')),
                 'price' => (float) ($data['price'] ?? 0),
                 'upc' => trim((string) ($data['upc'] ?? '')),
                 'producer_company' => trim((string) ($data['producer_company'] ?? '')),
             ]);
+            $stock = (int) ($data['stock_quantity'] ?? 0);
+            if ($stock > 0 && $productId > 0) {
+                $this->model->addStock($productId, $stock);
+            }
             FlashMessage::success('product added');
         } catch (\Throwable $e) {
-            FlashMessage::error('could not add product');
+            error_log('create product error: ' . $e->getMessage());
+            FlashMessage::error('could not add product: ' . $e->getMessage());
         }
         return $response->withStatus(302)->withHeader('Location', BASE_URL . 'product');
     }
@@ -67,9 +73,24 @@ class ProductController extends BaseController
                 'producer_company' => trim((string) ($data['producer_company'] ?? '')),
                 'active' => isset($data['active']),
             ]);
+            $stock = (int) ($data['stock_quantity'] ?? 0);
+            if ($stock > 0) {
+                $this->model->addStock($id, $stock);
+            }
+            $epcList = trim((string) ($data['epcs'] ?? ''));
+            if ($epcList !== '') {
+                $result = $this->model->addEpcsToProduct($id, $epcList);
+                foreach ($result['added'] as $epc) {
+                    FlashMessage::success('added EPC ' . $epc);
+                }
+                foreach ($result['ignored'] as $epc) {
+                    FlashMessage::error('EPC ' . $epc . ' not added');
+                }
+            }
             FlashMessage::success('product updated');
         } catch (\Throwable $e) {
-            FlashMessage::error('could not update product');
+            error_log('update product error: ' . $e->getMessage());
+            FlashMessage::error('could not update product: ' . $e->getMessage());
         }
         return $response->withStatus(302)->withHeader('Location', BASE_URL . 'product');
     }

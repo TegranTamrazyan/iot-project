@@ -45,6 +45,10 @@ $_SESSION['product_csrf'] = $csrf;
                         <label class="form-label small">Producer</label>
                         <input type="text" class="form-control" name="producer_company" placeholder="Coca-Cola Company" required>
                     </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Initial stock</label>
+                        <input type="number" class="form-control" name="stock_quantity" min="0" value="0">
+                    </div>
                     <div class="col-md-1 d-flex align-items-end">
                         <button class="btn btn-primary w-100">Add product</button>
                     </div>

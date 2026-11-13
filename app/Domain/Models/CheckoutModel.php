@@ -81,7 +81,7 @@ class CheckoutModel extends BaseModel
         if (!$product) throw new RuntimeException('Unknown UPC: '.$upc);
         // Each UPC scan represents one more unit. Without an EPC we cannot tell
         // WHICH exact physical unit was scanned.
-        $this->execute('INSERT INTO checkout_cart_items(station,product_id,quantity) VALUES(?,?,1)',
+        $this->execute('INSERT INTO checkout_cart_items(id,station,product_id,quantity) VALUES(NULL,?,?,1)',
             [self::STATION,$product['id']]);
     }
 
@@ -106,8 +106,8 @@ class CheckoutModel extends BaseModel
                  JOIN checkout_products p ON p.id=t.product_id
                  WHERE t.epc=? AND p.active=1', [$epc]);
             if (!$product) { $unknown[]=$epc; continue; }
-            $rows=$this->execute('INSERT IGNORE INTO checkout_cart_items(station,product_id,epc,quantity)
-                                  VALUES(?,?,?,1)',[self::STATION,$product['id'],$epc]);
+            $rows=$this->execute('INSERT IGNORE INTO checkout_cart_items(id,station,product_id,epc,quantity)
+                                  VALUES(NULL,?,?,?,1)',[self::STATION,$product['id'],$epc]);
             if ($rows) $added[]=$epc; else $ignored[]=$epc;
         }
         return ['added'=>$added,'unknown'=>$unknown,'ignored'=>$ignored];
@@ -210,14 +210,14 @@ class CheckoutModel extends BaseModel
                 if (!$member) throw new RuntimeException('Membership account not found.');
             }
             $this->execute(
-                'INSERT INTO checkout_orders(station,customer_id,membership_code_snapshot,points_earned,subtotal,tax,total)
-                 VALUES(?,?,?,?,?,?,?)',
+                'INSERT INTO checkout_orders(id,station,customer_id,membership_code_snapshot,points_earned,subtotal,tax,total)
+                 VALUES(NULL,?,?,?,?,?,?,?)',
                 [self::STATION,$customerId,$member['membership_code']??null,$points,
                  $totals['subtotal'],$totals['tax'],$totals['total']]);
             $orderId=(int)$this->lastInsertId();
             foreach ($items as $item) {
-                $this->execute('INSERT INTO checkout_order_items(order_id,product_id,product_name,quantity,unit_price)
-                                VALUES(?,?,?,?,?)',
+                $this->execute('INSERT INTO checkout_order_items(id,order_id,product_id,product_name,quantity,unit_price)
+                                VALUES(NULL,?,?,?,?,?)',
                     [$orderId,$item['product_id'],$item['name'],$item['quantity'],$item['price']]);
                 if ($item['epc'] !== null) {
                     $this->execute('INSERT INTO checkout_sold_epcs(epc,order_id) VALUES(?,?)',[$item['epc'],$orderId]);
@@ -293,14 +293,15 @@ class CheckoutModel extends BaseModel
         ');
     }
 
-    // insert a new product
-    public function createProduct(array $data): void
+    // insert a new product, returns the new product id
+    public function createProduct(array $data): int
     {
         $this->execute(
-            'INSERT INTO checkout_products(name, category, price, upc, producer_company, active)
-             VALUES(?,?,?,?,?,1)',
+            'INSERT INTO checkout_products(id, name, category, price, upc, producer_company, active)
+             VALUES(NULL,?,?,?,?,?,1)',
             [$data['name'], $data['category'], $data['price'], $data['upc'], $data['producer_company']]
         );
+        return (int) $this->lastInsertId();
     }
 
     // update an existing product
@@ -316,5 +317,45 @@ class CheckoutModel extends BaseModel
     public function deleteProduct(int $id): void
     {
         $this->execute('DELETE FROM checkout_products WHERE id=?', [$id]);
+    }
+
+    // record a stock reception for a product (increases inventory)
+    public function addStock(int $productId, int $quantity): void
+    {
+        $this->execute(
+            'INSERT INTO checkout_stock_receptions(id, product_id, quantity_received, received_at, reference_note)
+             VALUES(NULL,?,?,NOW(),?)',
+            [$productId, $quantity, 'manual stock adjustment']
+        );
+    }
+
+    // add epcs to a product (comma separated list, hex values max 24 chars)
+    public function addEpcsToProduct(int $productId, string $epcList): array
+    {
+        $added = [];
+        $ignored = [];
+        $epcs = array_values(array_unique(array_map(
+            static fn($x) => strtoupper(trim((string)$x)),
+            preg_split('/[\s,;]+/', $epcList, -1, PREG_SPLIT_NO_EMPTY)
+        )));
+
+        foreach ($epcs as $epc) {
+            if ($epc === '') continue;
+            if (!preg_match('/^[0-9A-F]{1,24}$/D', $epc)) {
+                $ignored[] = $epc . ' (invalid)';
+                continue;
+            }
+            try {
+                $this->execute(
+                    'INSERT IGNORE INTO checkout_rfid_tags(epc, product_id) VALUES(?,?)',
+                    [$epc, $productId]
+                );
+                $added[] = $epc;
+            } catch (\Throwable $e) {
+                $ignored[] = $epc . ' (duplicate)';
+            }
+        }
+
+        return ['added' => $added, 'ignored' => $ignored];
     }
 }

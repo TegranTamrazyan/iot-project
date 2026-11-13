@@ -29,6 +29,13 @@ class SessionManager
             ini_set('session.gc_probability', 1);
             ini_set('session.gc_divisor', 100);
 
+            // Use a writable session save directory (fixes permission denied on /var/lib/php/sessions)
+            $saveDir = __DIR__ . '/../../../var/sessions';
+            if (!is_dir($saveDir)) {
+                @mkdir($saveDir, 0777, true);
+            }
+            ini_set('session.save_path', $saveDir);
+
             // Security settings.
             ini_set('session.use_strict_mode', 1);
             ini_set('session.cookie_httponly', 1);
