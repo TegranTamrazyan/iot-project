@@ -6,6 +6,7 @@ use App\Controllers\AboutController;
 use App\Controllers\UserController;
 use App\Controllers\FridgeDashboardController;
 use App\Controllers\CheckoutController;
+use App\Controllers\ProductController;
 use App\Helpers\Core\DateTimeHelper;
 use App\Middleware\AdminMiddleware;
 use App\Middleware\AuthMiddleware;
@@ -62,5 +63,15 @@ return static function (Slim\App $app): void {
         $group->post('/fan', [FridgeDashboardController::class, 'update_fan']);
 
         $group->post('/threshold', [FridgeDashboardController::class, 'update_threshold']);
+    })->add($adminMiddleware);
+
+    // Product management (admin only)
+    $app->group('/product', function($group) {
+        $group->get('', [ProductController::class, 'index']);
+        $group->post('/create', [ProductController::class, 'create']);
+        $group->get('/edit/{id}', [ProductController::class, 'edit']);
+        $group->post('/edit/{id}', [ProductController::class, 'update']);
+        $group->post('/delete/{id}', [ProductController::class, 'delete']);
+        $group->post('/delete', [ProductController::class, 'deleteMultiple']);
     })->add($adminMiddleware);
 };

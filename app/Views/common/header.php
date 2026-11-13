@@ -19,8 +19,10 @@ $page_title=$page_title??'IOT Smart Store';
    <a class="btn btn-sm btn-outline-light" href="<?= BASE_URL ?>checkout">Checkout</a>
    <?php if (!empty($_SESSION['is_admin'])): ?>
     <a class="btn btn-sm btn-outline-light" href="<?= BASE_URL ?>fridge-dashboard">Fridges</a>
+    <a class="btn btn-sm btn-outline-light" href="<?= BASE_URL ?>product">Products</a>
     <?php else: ?>
     <a class="btn btn-sm btn-outline-secondary" href="<?= BASE_URL ?>fridge-dashboard">Fridges</a>
+    <a class="btn btn-sm btn-outline-secondary" href="<?= BASE_URL ?>product">Products</a>
    <?php endif; ?>
    <?php if (!empty($_SESSION['customer_id'])): ?>
     <a class="btn btn-sm btn-outline-light" href="<?= BASE_URL ?>account">My account</a>

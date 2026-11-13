@@ -260,4 +260,61 @@ class CheckoutModel extends BaseModel
             [$orderId]
         );
     }    
+
+    // list all products with current stock level and associated epcs
+    public function allProducts(): array
+    {
+        return $this->selectAll('
+            SELECT p.id, p.name, p.category, p.price, p.upc, p.producer_company, p.active,
+                   COALESCE(s.in_stock, 0) AS in_stock,
+                   GROUP_CONCAT(DISTINCT t.epc SEPARATOR ", ") AS epcs
+            FROM checkout_products p
+            LEFT JOIN checkout_stock_summary s ON s.product_id = p.id
+            LEFT JOIN checkout_rfid_tags t ON t.product_id = p.id
+            GROUP BY p.id
+            ORDER BY p.name
+        ');
+    }
+
+    // get one product by id for editing
+    public function getProduct(int $id): array|false
+    {
+        return $this->selectOne('SELECT * FROM checkout_products WHERE id=?', [$id]);
+    }
+
+    // list all stock receptions with product name and date
+    public function allReceptions(): array
+    {
+        return $this->selectAll('
+            SELECT r.id, r.quantity_received, r.received_at, p.name
+            FROM checkout_stock_receptions r
+            JOIN checkout_products p ON p.id = r.product_id
+            ORDER BY r.received_at DESC
+        ');
+    }
+
+    // insert a new product
+    public function createProduct(array $data): void
+    {
+        $this->execute(
+            'INSERT INTO checkout_products(name, category, price, upc, producer_company, active)
+             VALUES(?,?,?,?,?,1)',
+            [$data['name'], $data['category'], $data['price'], $data['upc'], $data['producer_company']]
+        );
+    }
+
+    // update an existing product
+    public function updateProduct(int $id, array $data): void
+    {
+        $this->execute(
+            'UPDATE checkout_products SET name=?, category=?, price=?, upc=?, producer_company=?, active=? WHERE id=?',
+            [$data['name'], $data['category'], $data['price'], $data['upc'], $data['producer_company'], $data['active'] ? 1 : 0, $id]
+        );
+    }
+
+    // delete a product by id
+    public function deleteProduct(int $id): void
+    {
+        $this->execute('DELETE FROM checkout_products WHERE id=?', [$id]);
+    }
 }

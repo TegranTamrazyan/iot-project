@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS customers (
     email_address VARCHAR(100) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     membership_code CHAR(6) NOT NULL UNIQUE,
-    total_points INT NOT NULL DEFAULT 0
+    total_points INT NOT NULL DEFAULT 0,
+    is_admin TINYINT(1) NOT NULL DEFAULT 0
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS checkout_products (
