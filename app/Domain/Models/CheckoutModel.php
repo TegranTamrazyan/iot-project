@@ -8,7 +8,7 @@ use App\Helpers\Core\PDOService;
 use RuntimeException;
 use Throwable;
 
-/** Customer shopping cart, EPC scanning, simulated orders and loyalty points. */
+//! Customer shopping cart, EPC scanning, simulated orders and loyalty points. 
 class CheckoutModel extends BaseModel
 {
     private const STATION = 'main';
@@ -16,6 +16,8 @@ class CheckoutModel extends BaseModel
 
     public function __construct(PDOService $db) { parent::__construct($db); }
 
+
+    //! Retrieves all products currently in the shopping cart
     public function cart(): array
     {
         return $this->selectAll(
@@ -27,7 +29,7 @@ class CheckoutModel extends BaseModel
         );
     }
 
-    /** Group a physical-item cart into one visible row per UPC. */
+    //! Group a physical-item cart into one visible row per UPC
     public function groupedCart(array $cart): array
     {
         $groups = [];
@@ -46,6 +48,7 @@ class CheckoutModel extends BaseModel
         return array_values($groups);
     }
 
+    //! enerates a unique hash to detect changes to the shopping cart
     public function cartFingerprint(): string
     {
         // Includes the exact unit rows, not only the total. This catches a reader
@@ -53,11 +56,14 @@ class CheckoutModel extends BaseModel
         return hash('sha256',json_encode($this->cart(),JSON_THROW_ON_ERROR));
     }
 
+    //! Retrieves RFID tags that the customer previously removed from the cart.
     public function removedTags(): array
     {
         return $this->selectAll('SELECT epc FROM checkout_removed_tags WHERE station=? ORDER BY epc', [self::STATION]);
     }
 
+
+    //! Calculates the shopping cart subtotal, taxes, and final total
     public function totals(array $cart): array
     {
         $subtotal = 0;
@@ -67,6 +73,7 @@ class CheckoutModel extends BaseModel
         return ['subtotal'=>$subtotal,'tax'=>$tax,'total'=>round($subtotal+$tax,2)];
     }
 
+    //! Finds a product using its UPC and adds one unit to the shopping cart
     public function addUpc(string $upc): void
     {
         if (!preg_match('/^[0-9]{1,13}$/D',$upc)) throw new RuntimeException('UPC must be 1 to 13 digits.');
@@ -78,7 +85,7 @@ class CheckoutModel extends BaseModel
             [self::STATION,$product['id']]);
     }
 
-    /** A reader reports multiple distinct physical EPCs in one batch. */
+    //! Processes multiple scanned EPCs and adds valid, available RFID items to the cart. 
     public function addEpcs(array $epcs): array
     {
         $added=[]; $unknown=[]; $ignored=[];
@@ -106,6 +113,8 @@ class CheckoutModel extends BaseModel
         return ['added'=>$added,'unknown'=>$unknown,'ignored'=>$ignored];
     }
 
+
+    //! Removes an item from the cart and prevents its RFID tag from being immediately re-added
     public function remove(int $id): void
     {
         $this->pdo->beginTransaction();
@@ -121,11 +130,14 @@ class CheckoutModel extends BaseModel
         } catch (Throwable $e) { $this->pdo->rollBack(); throw $e; }
     }
 
+
+    //! Allows a previously removed RFID tag to be scanned and added again
     public function restoreTag(string $epc): void
     {
         $this->execute('DELETE FROM checkout_removed_tags WHERE station=? AND epc=?',[self::STATION,$epc]);
     }
 
+    //! Empties the shopping cart and clears the list of removed RFID tags
     public function clear(): void
     {
         $this->pdo->beginTransaction();
@@ -136,6 +148,7 @@ class CheckoutModel extends BaseModel
         } catch (Throwable $e) { $this->pdo->rollBack(); throw $e; }
     }
 
+    //! Finds the matching member by his code, and retrieves info related to the customer
     public function memberByCode(string $code): array|false
     {
         if (!preg_match('/^[0-9]{6}$/D',$code)) return false;
@@ -143,16 +156,16 @@ class CheckoutModel extends BaseModel
                                   FROM customers WHERE membership_code=?',[$code]);
     }
 
+    //! Finds the matching member by his id (customer_id), and retrieves info related to the customer
     public function memberById(int $id): array|false
     {
         return $this->selectOne('SELECT customer_id,customer_name,email_address,membership_code
                                   FROM customers WHERE customer_id=?',[$id]);
     }
 
-    /**
-     * One payment per checkout, atomic stock check and membership-point award.
-     * Inventory is based on received quantities minus the sum of sold quantities.
-     */
+    //! One payment per checkout, atomic stock check and membership-point award.
+    //! Inventory is based on received quantities minus the sum of sold quantities.
+
     public function pay(?int $customerId): int
     {
         $this->pdo->beginTransaction();
@@ -190,7 +203,7 @@ class CheckoutModel extends BaseModel
             }
 
             $totals=$this->totals($items);
-            $points=$customerId ? (int)floor($totals['subtotal']) : 0; // 1 point per $1 before tax.
+            $points = $customerId ? (int)floor($totals['subtotal'] * 100) : 0; // 100 points per $1 before tax.
             $member=null;
             if ($customerId !== null) {
                 $member=$this->selectOne('SELECT customer_id,membership_code FROM customers WHERE customer_id=? FOR UPDATE',[$customerId]);
@@ -223,12 +236,15 @@ class CheckoutModel extends BaseModel
         }
     }
 
+    //! Summary of a completed order for the payment success page
     public function orderForSuccess(int $id): array|false
     {
         return $this->selectOne('SELECT id,customer_id,points_earned,total,created_at
                                   FROM checkout_orders WHERE id=?',[$id]);
     }
 
+
+    //! Retrieves and groups all purchased products belonging to a specific order
     public function orderItems(int $orderId): array
     {
         return $this->selectAll(
