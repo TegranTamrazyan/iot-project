@@ -56,7 +56,7 @@ return static function (Slim\App $app): void {
 
     // Preserve the original fridge dashboard and its API routes.
     $app->group('/fridge-dashboard', function($group) {
-        $group->get('', [FridgeDashboardController::class, 'view_fridge_dashboard']);
+        $group->get('', [FridgeDashboardController::class, 'view_fridge_dashboard'])->setName('fridge-dashboard.index');
 
         $group->get('/data', [FridgeDashboardController::class, 'get_dashboard_data']);
 
