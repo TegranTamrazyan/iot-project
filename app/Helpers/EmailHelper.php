@@ -76,15 +76,23 @@ class EmailHelper
                                             </tr>
                                         </table>
                                         <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse">
-                                            <thead>
-                                                <tr style="background-color:#f5f8fb">
-                                                    <th align="left" style="padding:12px;color:#526174;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Item</th>
-                                                    <th align="center" style="padding:12px;color:#526174;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Qty</th>
-                                                    <th align="right" style="padding:12px;color:#526174;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Price</th>
-                                                    <th align="right" style="padding:12px;color:#526174;font-size:11px;text-transform:uppercase;letter-spacing:.5px">Subtotal</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>{$rows}</tbody>
+                                        <thead>
+                                            <tr style="background-color:#f5f8fb">
+                                                <th align="left" style="padding:12px;color:#526174;font-size:11px;text-transform:uppercase;letter-spacing:.5px">
+                                                    Item
+                                                </th>
+                                                <th align="center" style="padding:12px;color:#526174;font-size:11px;text-transform:uppercase;letter-spacing:.5px">
+                                                    Qty
+                                                </th>
+                                                <th align="right" style="padding:12px;color:#526174;font-size:11px;text-transform:uppercase;letter-spacing:.5px">
+                                                    Price
+                                                </th>
+                                                <th align="right" style="padding:12px;color:#526174;font-size:11px;text-transform:uppercase;letter-spacing:.5px">
+                                                    Subtotal
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>{$rows}</tbody>
                                         </table>
                                         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:22px;border-collapse:collapse">
                                             <tr>
@@ -117,13 +125,17 @@ class EmailHelper
         string $recipient,
         string $receipt
     ): bool {
+        $mail = null;
+
         try {
+            // Get SMTP configuration
             $host = (string) (getenv('MAIL_HOST') ?: ($_ENV['MAIL_HOST'] ?? ''));
             $username = (string) (getenv('MAIL_USERNAME') ?: ($_ENV['MAIL_USERNAME'] ?? ''));
             $password = (string) (getenv('MAIL_PASSWORD') ?: ($_ENV['MAIL_PASSWORD'] ?? ''));
             $port = (int) (getenv('MAIL_PORT') ?: ($_ENV['MAIL_PORT'] ?? 587));
             $encryption = strtolower((string) (getenv('MAIL_ENCRYPTION') ?: ($_ENV['MAIL_ENCRYPTION'] ?? 'tls')));
 
+            // Validate SMTP configuration
             if (
                 $host === ''
                 || $username === ''
@@ -135,33 +147,42 @@ class EmailHelper
                 throw new \RuntimeException('SMTP configuration is incomplete or invalid.');
             }
 
+            // Create mailer
             $mail = new PHPMailer(true);
+
             $mail->isSMTP();
             $mail->Host = $host;
             $mail->SMTPAuth = true;
             $mail->Username = $username;
             $mail->Password = $password;
+
             $mail->SMTPSecure = $encryption === 'ssl'
                 ? PHPMailer::ENCRYPTION_SMTPS
                 : PHPMailer::ENCRYPTION_STARTTLS;
+
             $mail->Port = $port;
 
-            $mail->setFrom(
-                $username,
-                'IOT Smart Store'
-            );
-
+            // Sender and recipient
+            $mail->setFrom($username, 'IOT Smart Store');
             $mail->addAddress($recipient);
 
+            // Email content
             $mail->isHTML(true);
             $mail->Subject = 'Your Purchase Receipt';
             $mail->Body = $receipt;
 
+            // Send email
             $mail->send();
 
             return true;
+
         } catch (Throwable $e) {
             error_log('Email error: ' . $e->getMessage());
+
+            if ($mail !== null) {
+                error_log('SMTP Error: ' . $mail->ErrorInfo);
+            }
+
             return false;
         }
     }

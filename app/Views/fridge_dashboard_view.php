@@ -144,20 +144,6 @@ $data_url = BASE_URL . 'fridge-dashboard/data';
                         </span>
                     </p>
 
-                    <p>
-                        Motion Sensor:
-                        <span
-                            id="bluetooth-motion"
-                            class="<?= !isset($bluetooth['motion_sensor'])
-                                ? 'text-muted'
-                                : ((int) $bluetooth['motion_sensor'] === 1 ? 'text-warning' : 'text-success') ?>"
-                        >
-                            <?= !isset($bluetooth['motion_sensor'])
-                                ? 'No data'
-                                : ((int) $bluetooth['motion_sensor'] === 1 ? 'Motion detected' : 'No motion') ?>
-                        </span>
-                    </p>
-
                     <p class="text-muted mb-0">
                         Last Reading:
                         <span id="bluetooth-time">
@@ -311,21 +297,6 @@ async function refreshFridgeDashboard() {
             bluetooth.humidity == null
                 ? '-- %'
                 : Number(bluetooth.humidity).toFixed(1) + ' %';
-
-        const motion = document.getElementById('bluetooth-motion');
-
-        if (bluetooth.motion_sensor == null) {
-            motion.textContent = 'No data';
-            motion.className = 'text-muted';
-
-        } else if (Number(bluetooth.motion_sensor) === 1) {
-            motion.textContent = 'Motion detected';
-            motion.className = 'text-warning';
-
-        } else {
-            motion.textContent = 'No motion';
-            motion.className = 'text-success';
-        }
 
         document.getElementById('bluetooth-time').textContent =
             bluetooth.recorded_at ?? '--';

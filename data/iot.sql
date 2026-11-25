@@ -71,6 +71,14 @@ CREATE TABLE IF NOT EXISTS sensor_readings (
     INDEX idx_fridge_time (fridge, recorded_at)
 );
 
+CREATE TABLE IF NOT EXISTS bluetooth_sensor_readings (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    fridge VARCHAR(32) NOT NULL,
+    temperature DECIMAL(5,2) NOT NULL,
+    humidity DECIMAL(5,2) NOT NULL,
+    recorded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS thresholds (
     fridge VARCHAR(10) NOT NULL PRIMARY KEY,
     max_temperature DECIMAL(5,2) NOT NULL DEFAULT 5.00,

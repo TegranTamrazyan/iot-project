@@ -102,7 +102,6 @@ class FridgeDashboardController extends BaseController
             $bluetooth = [
                 'temperature' => $bluetoothReading ? (float) $bluetoothReading['temperature'] : null,
                 'humidity' => $bluetoothReading ? (float) $bluetoothReading['humidity'] : null,
-                'motion_sensor' => $bluetoothReading ? (int) $bluetoothReading['motion_sensor'] : null,
                 'recorded_at' => $bluetoothReading['recorded_at'] ?? null
             ];
 

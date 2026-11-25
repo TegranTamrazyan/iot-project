@@ -42,7 +42,7 @@ class FridgeDashboardModel extends BaseModel
     public function getLatestBluetoothReading(): ?array
     {
         $reading = $this->selectOne("
-            SELECT temperature, humidity, motion_sensor, recorded_at
+            SELECT temperature, humidity, recorded_at
             FROM bluetooth_sensor_readings
             ORDER BY id DESC
             LIMIT 1

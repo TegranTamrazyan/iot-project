@@ -61,9 +61,9 @@ Use a Gmail app password, not your regular Gmail password. Keep `.env` private.
 
 ## 3. Prepare the database and services
 
-Make sure MySQL/MariaDB and Mosquitto are running. The database named `iot` must contain the existing `customers` table plus `sensor_readings`, `thresholds`, and `fan_state`.
+Make sure MySQL/MariaDB and Mosquitto are running. The database named `iot` must contain `sensor_readings`, `bluetooth_sensor_readings`, `thresholds`, and `fan_state`. The DHT readings are loaded from `sensor_readings`; Bluetooth readings are loaded from `bluetooth_sensor_readings`.
 
-If the three fridge tables have not been created yet, import `data/fridge_iot_schema.sql` into the `iot` database from the project root. This script does not recreate the `customers` table.
+The fridge tables are defined in `data/iot.sql`. For an existing `iot` database without `bluetooth_sensor_readings`, run that table's `CREATE TABLE` statement from `data/iot.sql` before starting `bluetooth_sensor.py`; it stores the Bluetooth temperature, humidity, and timestamp for the dashboard.
 
 ## 4. Upload the ESP32 code
 
