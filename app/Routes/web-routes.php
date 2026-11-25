@@ -51,6 +51,8 @@ return static function (Slim\App $app): void {
     $app->get('/checkout/done',[CheckoutController::class,'done']);
     $app->post('/checkout/email-receipt',[CheckoutController::class,'emailReceipt']);
     $app->post('/checkout/api/scan',[CheckoutController::class,'scanApi']);
+    $app->post('/rfid/scan', [ProductController::class, 'receiveRfidScan']);
+    $app->post('/checkout/scanner/activate', [ProductController::class, 'activateCheckoutScanner']);
 
     $adminMiddleware = new AuthMiddleware($app->getResponseFactory());
 
@@ -73,5 +75,9 @@ return static function (Slim\App $app): void {
         $group->post('/edit/{id}', [ProductController::class, 'update']);
         $group->post('/delete/{id}', [ProductController::class, 'delete']);
         $group->post('/delete', [ProductController::class, 'deleteMultiple']);
+        $group->post('/product/api/scan/{id}', [ProductController::class, 'scanEpcs']);
+        $group->post('/edit/{id}/scanner/activate', [ProductController::class, 'activateProductScanner']);
+        $group->get('/edit/{id}/scanner/count', [ProductController::class, 'pendingRfidCount']);
+        $group->post('/edit/{id}/epcs/clear', [ProductController::class, 'clearEpcs']);
     })->add($adminMiddleware);
 };

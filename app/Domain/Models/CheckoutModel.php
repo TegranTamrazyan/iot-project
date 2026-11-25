@@ -346,11 +346,16 @@ class CheckoutModel extends BaseModel
                 continue;
             }
             try {
-                $this->execute(
-                    'INSERT IGNORE INTO checkout_rfid_tags(epc, product_id) VALUES(?,?)',
-                    [$epc, $productId]
+                $rows = $this->execute(
+                'INSERT IGNORE INTO checkout_rfid_tags(epc, product_id) VALUES(?,?)',
+                [$epc, $productId]
                 );
-                $added[] = $epc;
+
+                if ($rows > 0) {
+                    $added[] = $epc;
+                } else {
+                    $ignored[] = $epc . ' (already registered)';
+                }
             } catch (\Throwable $e) {
                 $ignored[] = $epc . ' (duplicate)';
             }
@@ -358,4 +363,69 @@ class CheckoutModel extends BaseModel
 
         return ['added' => $added, 'ignored' => $ignored];
     }
+    public function countProductEpcs(int $productId): int
+    {
+        $result = $this->selectOne(
+            'SELECT COUNT(*) AS total FROM checkout_rfid_tags WHERE product_id = ?',
+            [$productId]
+        );
+
+        return (int) ($result['total'] ?? 0);
+    }
+
+    // Create a product and register its scanned RFID tags.
+    public function createProductWithScans(array $data, int $stock, array $epcs): array
+    {
+        $this->pdo->beginTransaction();
+
+        try {
+            $productId = $this->createProduct($data);
+
+            $result = $this->addEpcsToProduct(
+                $productId,
+                implode(',', $epcs)
+            );
+
+            $registered = count($result['added']);
+
+            $stock = max($stock, $registered);
+
+            if ($stock > 0) {
+                $this->addStock($productId, $stock);
+            }
+
+            $this->pdo->commit();
+
+            return [
+                'product_id' => $productId,
+                'registered' => $registered
+            ];
+
+        } catch (Throwable $e) {
+            if ($this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+
+            throw $e;
+        }
+    }
+
+    public function getProductEpcs(int $productId): array
+    {
+        $rows = $this->selectAll(
+            'SELECT epc FROM checkout_rfid_tags WHERE product_id = ? ORDER BY epc',
+            [$productId]
+        );
+
+        return array_column($rows, 'epc');
+    }
+
+    public function clearProductEpcs(int $productId): void
+    {
+        $this->execute(
+            'DELETE FROM checkout_rfid_tags WHERE product_id = ?',
+            [$productId]
+        );
+    }
+
 }

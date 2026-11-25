@@ -31,15 +31,17 @@ class CheckoutController extends BaseController
 
     public function index(Request $request,Response $response): Response
     {
-        $cart=$this->model->cart();
-        $live=($request->getQueryParams()['live']??'1')!=='0';
-        $response=$this->render($response,'checkout/index.php',[
-            'groups'=>$this->model->groupedCart($cart), 'cart'=>$cart,
-            'removed'=>$this->model->removedTags(), 'live'=>$live,
-            'error'=>(string)($request->getQueryParams()['error']??''),
-        ]+$this->model->totals($cart));
-        // Plain HTTP page refresh. No JavaScript is needed for scanner updates.
-        return $live ? $response->withHeader('Refresh','3; url='.BASE_URL.'checkout?live=1') : $response;
+        $cart = $this->model->cart();
+        $response = $this->render($response, 'checkout/index.php', [
+            'groups' => $this->model->groupedCart($cart),
+            'cart' => $cart,
+            'removed' => $this->model->removedTags(),
+            'error' => (string) ($request->getQueryParams()['error'] ?? ''),
+        ] + $this->model->totals($cart));
+
+        // The page itself never refreshes automatically.
+        // JavaScript updates only the shopping-cart area once per second.
+        return $response->withHeader('Cache-Control', 'no-store');
     }
 
     public function add(Request $request,Response $response): Response
@@ -54,8 +56,8 @@ class CheckoutController extends BaseController
                 $result=$this->model->addEpcs($epcs);
                 if ($result['unknown']) throw new RuntimeException('Unknown EPC(s): '.implode(', ',array_slice($result['unknown'],0,5)));
             } else throw new RuntimeException('Enter a barcode UPC or EPC tags.');
-            return $this->go($response,'checkout?live=0');
-        } catch (Throwable $e) { return $this->go($response,'checkout?live=0&error='.rawurlencode($e->getMessage())); }
+            return $this->go($response,'checkout');
+        } catch (Throwable $e) { return $this->go($response,'checkout?error='.rawurlencode($e->getMessage())); }
     }
 
     public function remove(Request $request,Response $response): Response
@@ -63,14 +65,14 @@ class CheckoutController extends BaseController
         if ($bad=$this->validForm($request,$response)) return $bad;
         $data=(array)($request->getParsedBody()??[]);
         $this->model->remove((int)($data['id']??0));
-        return $this->go($response,'checkout?live=0');
+        return $this->go($response,'checkout');
     }
 
     public function clear(Request $request,Response $response): Response
     {
         if ($bad=$this->validForm($request,$response)) return $bad;
         $this->model->clear();
-        return $this->go($response,'checkout?live=0');
+        return $this->go($response,'checkout');
     }
 
     public function restoreTag(Request $request,Response $response): Response
@@ -78,13 +80,13 @@ class CheckoutController extends BaseController
         if ($bad=$this->validForm($request,$response)) return $bad;
         $body=(array)($request->getParsedBody()??[]);
         $this->model->restoreTag(strtoupper(trim((string)($body['epc']??''))));
-        return $this->go($response,'checkout?live=0');
+        return $this->go($response,'checkout');
     }
 
     public function confirm(Request $request,Response $response): Response
     {
         $cart=$this->model->cart();
-        if (!$cart) return $this->go($response,'checkout?live=0');
+        if (!$cart) return $this->go($response,'checkout');
         $_SESSION['checkout_review_hash']=$this->model->cartFingerprint();
         $customer=null;
         if (!empty($_SESSION['customer_id'])) $customer=$this->model->memberById((int)$_SESSION['customer_id']);

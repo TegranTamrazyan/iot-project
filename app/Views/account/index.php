@@ -4,6 +4,8 @@ use App\Helpers\CheckoutSecurity;
 use App\Helpers\Core\FlashMessage;
 ViewHelper::loadHeader('My Account');
 $h=static fn($v)=>htmlspecialchars((string)$v,ENT_QUOTES,'UTF-8');
+
+
 ?>
 <div class="container py-5">
  <?= FlashMessage::render() ?>

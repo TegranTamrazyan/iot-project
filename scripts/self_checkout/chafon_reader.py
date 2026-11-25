@@ -1,13 +1,9 @@
 
 import os
-import re
 import time
 import serial
 
-os.environ.setdefault(
-    "CHECKOUT_URL",
-    "http://localhost:8080/checkout/api/scan"
-)
+os.environ["CHECKOUT_URL"] = "http://localhost:8080/rfid/scan"
 
 from scan_client import send
 
@@ -16,13 +12,59 @@ BAUD = 115200
 
 COMMAND = bytes.fromhex("0008220000000022")
 
+# Keep True until we've confirmed the EPCs are correct.
+DEBUG_ONLY = False
 
-def read_rfid_tags(reader):
-    reader.reset_input_buffer()
+# Frame structure observed in your CF600 output.
+HEADER = bytes.fromhex("0000CF0100011200")
+FRAME_LENGTH = 27
+EPC_LENGTH = 12
 
+
+def extract_epcs(buffer):
+    epcs = set()
+
+    while True:
+        # Find the beginning of a complete reader response.
+        start = buffer.find(HEADER)
+
+        if start == -1:
+            # Preserve possible partial headers for the next read.
+            keep = min(len(buffer), len(HEADER) - 1)
+            del buffer[:len(buffer) - keep]
+            break
+
+        # Discard anything before the valid header.
+        if start > 0:
+            del buffer[:start]
+
+        # Wait until the entire record has arrived.
+        if len(buffer) < FRAME_LENGTH:
+            break
+
+        frame = bytes(buffer[:FRAME_LENGTH])
+
+        # Check the metadata and EPC length observed in your output.
+        if frame[10:13] != bytes.fromhex("01000C"):
+            del buffer[0]
+            continue
+
+        # Extract exactly the 12 EPC bytes, not the surrounding data.
+        epc = frame[13:25].hex().upper()
+
+        if len(epc) == EPC_LENGTH * 2 and epc != "0" * 24:
+            epcs.add(epc)
+
+        # Remove the processed record.
+        del buffer[:FRAME_LENGTH]
+
+    return epcs
+
+
+def read_rfid_tags(reader, buffer):
     start_time = time.monotonic()
     last_poll = 0
-    raw_data = bytearray()
+    epcs = set()
 
     while time.monotonic() - start_time < 2.0:
         now = time.monotonic()
@@ -32,22 +74,14 @@ def read_rfid_tags(reader):
             last_poll = now
 
         if reader.in_waiting > 0:
-            raw_data.extend(reader.read(reader.in_waiting))
+            buffer.extend(reader.read(reader.in_waiting))
+
+            # Parse complete records immediately.
+            epcs.update(extract_epcs(buffer))
         else:
             time.sleep(0.01)
 
-    raw_hex = raw_data.hex().upper()
-
-    epcs = re.findall(
-        r"(?:A0|E0)[A-F0-9]{22}",
-        raw_hex
-    )
-
-    if raw_hex and not epcs:
-        print("Received data, but no EPCs matched:")
-        print(raw_hex[:200])
-
-    return sorted(set(epcs))
+    return sorted(epcs)
 
 
 def main():
@@ -61,13 +95,20 @@ def main():
         print("Chafon connected.")
         print("Scanning RFID tags...")
 
+        # Keep incomplete records between scan cycles.
+        buffer = bytearray()
+
         while True:
-            epcs = read_rfid_tags(reader)
+            epcs = read_rfid_tags(reader, buffer)
 
             if not epcs:
                 continue
 
             print("RFID tags detected:", epcs)
+
+            # Don't save anything during testing.
+            if DEBUG_ONLY:
+                continue
 
             try:
                 send({"epcs": epcs})

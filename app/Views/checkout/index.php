@@ -1,4 +1,3 @@
-
 <?php
 
 use App\Helpers\Core\FlashMessage;
@@ -9,6 +8,15 @@ ViewHelper::loadHeader('Self Checkout');
 
 $csrf = CheckoutSecurity::csrfToken();
 $h = static fn($v) => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+
+// Keep the physical RFID scanner in checkout mode while this page is active.
+$_SESSION['checkout_scanner_token'] ??= bin2hex(random_bytes(16));
+
+// Only replace the shopping-list HTML when its data actually changes.
+$cartVersion = hash('sha256', json_encode(
+    [$cart, $removed, $subtotal, $tax, $total],
+    JSON_THROW_ON_ERROR
+));
 
 ?>
 
@@ -22,23 +30,9 @@ $h = static fn($v) => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
 
     <?= FlashMessage::render() ?>
 
-    <!-- <?php if ($error): ?><div class="alert alert-danger" role="alert"><?= $h($error) ?></div><?php endif; ?> -->
-
-    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-4">
-
-        <div class="small text-muted">
-            Auto refresh:
-            <strong><?= $live ? 'On' : 'Off' ?></strong>
-        </div>
-
-        <a
-            href="<?= BASE_URL ?>checkout?live=<?= $live ? '0' : '1' ?>"
-            class="btn btn-outline-secondary btn-sm"
-        >
-            <?= $live ? 'Pause refresh' : 'Resume refresh' ?>
-        </a>
-
-    </div>
+    <?php if ($error !== ''): ?>
+        <div class="alert alert-danger" role="alert"><?= $h($error) ?></div>
+    <?php endif; ?>
 
     <div class="row g-4">
 
@@ -120,6 +114,9 @@ $h = static fn($v) => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
 
         <div class="col-lg-8">
 
+            <!-- Only this area is updated automatically; input forms stay untouched. -->
+            <div id="checkout-cart-content" data-cart-version="<?= $h($cartVersion) ?>">
+
             <section class="card store-card">
                 <div class="card-body p-4">
 
@@ -129,12 +126,7 @@ $h = static fn($v) => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
                             Shopping list
                         </h2>
 
-                        <a
-                            href="<?= BASE_URL ?>checkout?live=0"
-                            class="btn btn-sm btn-outline-secondary"
-                        >
-                            Refresh cart
-                        </a>
+                        <small class="text-muted">Updates automatically</small>
 
                     </div>
 
@@ -320,10 +312,97 @@ $h = static fn($v) => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
 
             <?php endif; ?>
 
+            </div><!-- /checkout-cart-content -->
+
         </div>
 
     </div>
 
 </div>
+
+<script>
+// The Chafon reader keeps running; the visible page selects its destination.
+const checkoutScannerUrl = <?= json_encode(BASE_URL . 'checkout/scanner/activate', JSON_UNESCAPED_SLASHES) ?>;
+const checkoutCartUrl = <?= json_encode(BASE_URL . 'checkout', JSON_UNESCAPED_SLASHES) ?>;
+const checkoutScannerToken = <?= json_encode($_SESSION['checkout_scanner_token']) ?>;
+
+let scannerActivating = false;
+let cartRefreshing = false;
+
+async function activateCheckoutScanner() {
+    // Don't compete with the Product Edit tab when checkout is hidden.
+    if (document.hidden || scannerActivating) return;
+
+    scannerActivating = true;
+    try {
+        const response = await fetch(checkoutScannerUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ token: checkoutScannerToken })
+        });
+
+        if (!response.ok) {
+            console.error('Checkout RFID activation failed: HTTP ' + response.status);
+        }
+    } catch (error) {
+        console.error('Checkout RFID activation failed:', error);
+    } finally {
+        scannerActivating = false;
+    }
+}
+
+async function refreshCheckoutCart() {
+    if (document.hidden || cartRefreshing) return;
+
+    cartRefreshing = true;
+    try {
+        // Fetch the latest server-rendered checkout HTML, without navigating.
+        const response = await fetch(checkoutCartUrl, {
+            credentials: 'same-origin',
+            cache: 'no-store'
+        });
+
+        if (!response.ok) {
+            throw new Error('Checkout refresh failed: HTTP ' + response.status);
+        }
+
+        const html = await response.text();
+        const updatedDocument = new DOMParser().parseFromString(html, 'text/html');
+        const updated = updatedDocument.getElementById('checkout-cart-content');
+        const current = document.getElementById('checkout-cart-content');
+
+        if (!updated || !current) {
+            throw new Error('Shopping-list section not found.');
+        }
+
+        // Avoid flicker and interruption of button clicks if nothing changed.
+        if (updated.dataset.cartVersion !== current.dataset.cartVersion) {
+            current.replaceWith(document.importNode(updated, true));
+        }
+    } catch (error) {
+        console.error('Could not update shopping list:', error);
+    } finally {
+        cartRefreshing = false;
+    }
+}
+
+activateCheckoutScanner();
+setInterval(activateCheckoutScanner, 2000);
+setInterval(refreshCheckoutCart, 1000);
+
+window.addEventListener('focus', () => {
+    activateCheckoutScanner();
+    refreshCheckoutCart();
+});
+
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+        activateCheckoutScanner();
+        refreshCheckoutCart();
+    }
+});
+</script>
 
 <?php require APP_VIEWS_PATH . '/checkout/no_js_footer.php'; ?>
