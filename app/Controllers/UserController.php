@@ -95,12 +95,134 @@ class UserController extends BaseController
         if (!$id) return $this->go($res,'login');
         $customer=$this->users->getUserById($id);
         if (!$customer) { unset($_SESSION['customer_id']); return $this->go($res,'login'); }
-        $items=[];
-        foreach ($this->users->purchasedItems($id) as $item) {
-            $items[(int)$item['order_id']][]=$item;
+
+        $receiptsPerPage = 10;
+        $receiptCount = $this->users->purchaseCount($id);
+        $pageCount = max(1, (int)ceil($receiptCount / $receiptsPerPage));
+        $requestedPage = filter_var($req->getQueryParams()['page'] ?? 1, FILTER_VALIDATE_INT);
+        $page = min($pageCount, max(1, $requestedPage === false ? 1 : $requestedPage));
+        $purchases = $this->users->purchases(
+            $id,
+            limit: $receiptsPerPage,
+            offset: ($page - 1) * $receiptsPerPage
+        );
+        $items = [];
+        $orderIds = array_map(static fn(array $order): int => (int)$order['id'], $purchases);
+        foreach ($this->users->purchasedItems($id, $orderIds) as $item) {
+            $items[(int)$item['order_id']][] = $item;
         }
+
         return $this->render($res,'account/index.php',[
-            'customer'=>$customer,'purchases'=>$this->users->purchases($id),'purchaseItems'=>$items]);
+            'customer'=>$customer,
+            'purchases'=>$purchases,
+            'purchaseItems'=>$items,
+            'currentPage'=>$page,
+            'pageCount'=>$pageCount,
+            'receiptCount'=>$receiptCount,
+            'receiptsPerPage'=>$receiptsPerPage,
+        ]);
+    }
+
+    public function purchaseReport(Request $req,Response $res): Response
+    {
+        $id=(int)($_SESSION['customer_id']??0);
+        if (!$id) return $this->go($res,'login');
+        $customer=$this->users->getUserById($id);
+        if (!$customer) { unset($_SESSION['customer_id']); return $this->go($res,'login'); }
+
+        $query = $req->getQueryParams();
+        $fromDate = trim((string)($query['from'] ?? ''));
+        $toDate = trim((string)($query['to'] ?? ''));
+        $search = trim((string)($query['item'] ?? ''));
+        $productRowsPerPage = 10;
+        $reportError = '';
+        foreach (['Start date' => $fromDate, 'End date' => $toDate] as $label => $date) {
+            if ($date !== '' && !$this->isReportDate($date)) {
+                $reportError = $label . ' must be a valid date.';
+                break;
+            }
+        }
+        if ($reportError === '' && $fromDate !== '' && $toDate !== '' && $fromDate > $toDate) {
+            $reportError = 'Start date must be on or before end date.';
+        }
+        if ($reportError === '' && strlen($search) > 100) {
+            $reportError = 'Item search must be 100 characters or fewer.';
+        }
+
+        $purchases = $reportError === '' ? $this->users->purchases(
+            $id,
+            $fromDate !== '' ? $fromDate : null,
+            $toDate !== '' ? $toDate : null
+        ) : [];
+        $productRowsCount = $reportError === '' ? $this->users->purchasedProductRowCount(
+            $id,
+            $fromDate !== '' ? $fromDate : null,
+            $toDate !== '' ? $toDate : null
+        ) : 0;
+        $productRowsPageCount = max(1, (int)ceil($productRowsCount / $productRowsPerPage));
+        $requestedProductRowsPage = filter_var($query['products_page'] ?? 1, FILTER_VALIDATE_INT);
+        $productRowsPage = min(
+            $productRowsPageCount,
+            max(1, $requestedProductRowsPage === false ? 1 : $requestedProductRowsPage)
+        );
+        $productRows = $reportError === '' ? $this->users->purchasedProductRows(
+            $id,
+            $fromDate !== '' ? $fromDate : null,
+            $toDate !== '' ? $toDate : null,
+            $productRowsPerPage,
+            ($productRowsPage - 1) * $productRowsPerPage
+        ) : [];
+        $productPurchases = $reportError === '' && $search !== ''
+            ? $this->users->productPurchases(
+                $id,
+                $search,
+                $fromDate !== '' ? $fromDate : null,
+                $toDate !== '' ? $toDate : null
+            )
+            : [];
+        $purchasedProductNames = $reportError === ''
+            ? $this->users->purchasedProductNames(
+                $id,
+                $fromDate !== '' ? $fromDate : null,
+                $toDate !== '' ? $toDate : null
+            )
+            : [];
+        $totalSpent = array_sum(array_map(
+            static fn(array $order): float => (float)$order['total'],
+            $purchases
+        ));
+        $spendingByDate = [];
+        foreach ($purchases as $purchase) {
+            $date = substr((string)$purchase['created_at'], 0, 10);
+            $spendingByDate[$date] = ($spendingByDate[$date] ?? 0.0) + (float)$purchase['total'];
+        }
+        ksort($spendingByDate);
+
+        return $this->render($res,'account/report.php',[
+            'customer'=>$customer,
+            'purchases'=>$purchases,
+            'totalSpent'=>$totalSpent,
+            'spendingByDate'=>$spendingByDate,
+            'productRows'=>$productRows,
+            'productRowsCount'=>$productRowsCount,
+            'productRowsPage'=>$productRowsPage,
+            'productRowsPageCount'=>$productRowsPageCount,
+            'productRowsPerPage'=>$productRowsPerPage,
+            'productSearch'=>$search,
+            'productPurchases'=>$productPurchases,
+            'purchasedProductNames'=>$purchasedProductNames,
+            'reportError'=>$reportError,
+            'fromDate'=>$fromDate,
+            'toDate'=>$toDate,
+        ]);
+    }
+
+    private function isReportDate(string $date): bool
+    {
+        $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        return $parsed !== false
+            && $parsed->format('Y-m-d') === $date
+            && \DateTimeImmutable::getLastErrors() === false;
     }
 
     public function logout(Request $req,Response $res): Response

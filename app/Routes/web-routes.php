@@ -10,6 +10,7 @@ use App\Controllers\ProductController;
 use App\Helpers\Core\DateTimeHelper;
 use App\Middleware\AdminMiddleware;
 use App\Middleware\AuthMiddleware;
+use App\Middleware\CustomerMiddleware;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
@@ -35,8 +36,12 @@ return static function (Slim\App $app): void {
     $app->post('/adding',[UserController::class,'store_user'])->setName('adding.store');
     $app->get('/login',[UserController::class,'view_login_user'])->setName('login.view');
     $app->post('/login',[UserController::class,'login'])->setName('login.verify');
-    $app->get('/account',[UserController::class,'account'])->setName('account.index');
-    $app->post('/account/resend-receipt',[UserController::class,'resendReceipt']);
+    $customerMiddleware = new CustomerMiddleware($app->getResponseFactory());
+    $app->group('/account', function($group) {
+        $group->get('',[UserController::class,'account'])->setName('account.index');
+        $group->get('/report',[UserController::class,'purchaseReport'])->setName('account.report');
+        $group->post('/resend-receipt',[UserController::class,'resendReceipt']);
+    })->add($customerMiddleware);
     $app->post('/logout',[UserController::class,'logout']);
 
     // SELF CHECKOUT: cart, RFID batch, membership selection and simulated payment.

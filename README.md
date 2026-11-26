@@ -4,9 +4,9 @@
 A lightweight MVC web application starter template built on top of the Slim PHP microframework. Ideal for projects that require Slim's simplicity without sacrificing the benefits of a clean MVC architecture.
 PHP / Slim MVC IoT store running on Raspberry Pi with Bootstrap.
 
-The included functionality is **self-checkout**, barcode and batch RFID input, a shopping cart, simulated payment, customer registration and password login, membership numbers, loyalty points and purchase history. The existing **fridge dashboard** remains available.
+The included functionality is **self-checkout**, barcode and batch RFID input, a shopping cart, simulated payment, customer registration and password login, membership numbers, loyalty points and a customer purchase-report portal. Customers can filter receipts and spending by date, search past purchases by item, view each purchase price and compare prices over time. The existing **fridge dashboard** remains available.
 
-**Not included:** Product management, inventory management interface, receipts and receipt emailing, notification module, or language translation. Those features are assigned separately.
+**Not included:** Product management, inventory management interface, notification module, or language translation. Those features are assigned separately.
 
 ## Setup
 
@@ -33,7 +33,7 @@ The source code uses root-based web routes with no `/iot-project-main` URL prefi
 | `/checkout/confirm` | Review, membership and simulated payment |
 | `/adding` | Customer registration |
 | `/login` | Customer login |
-| `/account` | Membership number, points and purchases |
+| `/account` | Membership number, points, filtered receipts, spending totals and item price history |
 | `/fridge-dashboard` | Existing fridge monitor |
 
 **```NOTE:```** You can always clone this repository. However, if you do, you need to remove the ```.git``` ***hidden*** directory before you copy this template over to ```htdocs```
