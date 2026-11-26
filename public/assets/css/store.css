@@ -6,3 +6,11 @@ body{font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:#1722
 .money{font-variant-numeric:tabular-nums}.membership-card{background:linear-gradient(120deg,#102e4e,#24628f);color:white;border-radius:1.25rem;padding:2rem;max-width:450px;box-shadow:0 13px 32px rgba(16,45,75,.18)}
 .card-label{color:#c5d9e9;letter-spacing:.12em;font-size:.73rem;text-transform:uppercase}.member-number{font-size:2rem;letter-spacing:.13em;font-weight:700}
 .form-control:focus{border-color:#61a6cf;box-shadow:0 0 0 .2rem rgba(37,107,151,.15)}
+.report-filter{border:1px solid #e7ebef;border-radius:.9rem;background:#f8fafc;padding:1rem}
+.report-chart{border:1px solid #e7ebef;border-radius:.75rem;padding:.75rem;background:#fbfdff}
+.report-chart svg{display:block;width:100%;height:auto;min-height:150px}
+.chart-axis{stroke:#dbe3eb;stroke-width:1}
+.chart-line{stroke:#2877a8;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.chart-dot{fill:#fff;stroke:#2877a8;stroke-width:3}
+.chart-label{fill:#60748c;font-size:12px}
+.receipt-entry:first-of-type{border-top:0!important}

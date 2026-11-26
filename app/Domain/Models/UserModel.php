@@ -51,17 +51,83 @@ class UserModel extends BaseModel
         throw new RuntimeException('Could not generate a membership number. Please retry.');
     }
 
-    public function purchases(int $customerId): array
+    public function purchases(int $customerId, ?string $fromDate = null, ?string $toDate = null): array
     {
-        return $this->selectAll('SELECT id,total,points_earned,created_at,status
-                                  FROM checkout_orders WHERE customer_id=? ORDER BY created_at DESC,id DESC',[$customerId]);
+        $sql = 'SELECT id,total,points_earned,created_at,status
+                FROM checkout_orders WHERE customer_id=?';
+        $params = [$customerId];
+        if ($fromDate !== null) {
+            $sql .= ' AND created_at >= ?';
+            $params[] = $fromDate . ' 00:00:00';
+        }
+        if ($toDate !== null) {
+            $sql .= ' AND created_at < DATE_ADD(?, INTERVAL 1 DAY)';
+            $params[] = $toDate;
+        }
+        return $this->selectAll($sql . ' ORDER BY created_at DESC,id DESC', $params);
     }
 
-    public function purchasedItems(int $customerId): array
+    public function purchasedItems(int $customerId, ?array $orderIds = null): array
     {
+        if ($orderIds === []) return [];
+        $sql = 'SELECT oi.order_id,oi.product_name,oi.quantity,oi.unit_price
+                FROM checkout_order_items oi JOIN checkout_orders o ON o.id=oi.order_id
+                WHERE o.customer_id=?';
+        $params = [$customerId];
+        if ($orderIds !== null) {
+            $placeholders = implode(',', array_fill(0, count($orderIds), '?'));
+            $sql .= ' AND oi.order_id IN (' . $placeholders . ')';
+            $params = array_merge($params, array_map('intval', $orderIds));
+        }
         return $this->selectAll(
-            'SELECT oi.order_id,oi.product_name,oi.quantity,oi.unit_price
-             FROM checkout_order_items oi JOIN checkout_orders o ON o.id=oi.order_id
-             WHERE o.customer_id=? ORDER BY oi.order_id DESC,oi.id',[$customerId]);
+            $sql . ' ORDER BY oi.order_id DESC,oi.id',
+            $params
+        );
+    }
+
+    public function productPurchases(
+        int $customerId,
+        string $search,
+        ?string $fromDate = null,
+        ?string $toDate = null
+    ): array {
+        $sql = 'SELECT o.id AS order_id,o.created_at,oi.product_name,
+                       SUM(oi.quantity) AS quantity,oi.unit_price
+                FROM checkout_orders o
+                JOIN checkout_order_items oi ON oi.order_id=o.id
+                WHERE o.customer_id=? AND oi.product_name=?';
+        $params = [$customerId, $search];
+        if ($fromDate !== null) {
+            $sql .= ' AND o.created_at >= ?';
+            $params[] = $fromDate . ' 00:00:00';
+        }
+        if ($toDate !== null) {
+            $sql .= ' AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)';
+            $params[] = $toDate;
+        }
+        $sql .= ' GROUP BY o.id,o.created_at,oi.product_name,oi.unit_price
+                  ORDER BY o.created_at ASC,o.id ASC,oi.product_name';
+        return $this->selectAll($sql, $params);
+    }
+
+    public function purchasedProductNames(
+        int $customerId,
+        ?string $fromDate = null,
+        ?string $toDate = null
+    ): array {
+        $sql = 'SELECT DISTINCT oi.product_name
+                FROM checkout_orders o
+                JOIN checkout_order_items oi ON oi.order_id=o.id
+                WHERE o.customer_id=?';
+        $params = [$customerId];
+        if ($fromDate !== null) {
+            $sql .= ' AND o.created_at >= ?';
+            $params[] = $fromDate . ' 00:00:00';
+        }
+        if ($toDate !== null) {
+            $sql .= ' AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)';
+            $params[] = $toDate;
+        }
+        return $this->selectAll($sql . ' ORDER BY oi.product_name', $params);
     }
 }

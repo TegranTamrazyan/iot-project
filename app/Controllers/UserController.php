@@ -95,12 +95,75 @@ class UserController extends BaseController
         if (!$id) return $this->go($res,'login');
         $customer=$this->users->getUserById($id);
         if (!$customer) { unset($_SESSION['customer_id']); return $this->go($res,'login'); }
-        $items=[];
-        foreach ($this->users->purchasedItems($id) as $item) {
-            $items[(int)$item['order_id']][]=$item;
+
+        $query = $req->getQueryParams();
+        $fromDate = trim((string)($query['from'] ?? ''));
+        $toDate = trim((string)($query['to'] ?? ''));
+        $search = trim((string)($query['item'] ?? ''));
+        $reportError = '';
+        foreach (['Start date' => $fromDate, 'End date' => $toDate] as $label => $date) {
+            if ($date !== '' && !$this->isReportDate($date)) {
+                $reportError = $label . ' must be a valid date.';
+                break;
+            }
         }
+        if ($reportError === '' && $fromDate !== '' && $toDate !== '' && $fromDate > $toDate) {
+            $reportError = 'Start date must be on or before end date.';
+        }
+        if ($reportError === '' && strlen($search) > 100) {
+            $reportError = 'Item search must be 100 characters or fewer.';
+        }
+
+        $purchases = $reportError === '' ? $this->users->purchases(
+            $id,
+            $fromDate !== '' ? $fromDate : null,
+            $toDate !== '' ? $toDate : null
+        ) : [];
+        $items = [];
+        $orderIds = array_map(static fn(array $order): int => (int)$order['id'], $purchases);
+        foreach ($this->users->purchasedItems($id, $orderIds) as $item) {
+            $items[(int)$item['order_id']][] = $item;
+        }
+        $productPurchases = $reportError === '' && $search !== ''
+            ? $this->users->productPurchases(
+                $id,
+                $search,
+                $fromDate !== '' ? $fromDate : null,
+                $toDate !== '' ? $toDate : null
+            )
+            : [];
+        $purchasedProductNames = $reportError === ''
+            ? $this->users->purchasedProductNames(
+                $id,
+                $fromDate !== '' ? $fromDate : null,
+                $toDate !== '' ? $toDate : null
+            )
+            : [];
+        $totalSpent = array_sum(array_map(
+            static fn(array $order): float => (float)$order['total'],
+            $purchases
+        ));
+
         return $this->render($res,'account/index.php',[
-            'customer'=>$customer,'purchases'=>$this->users->purchases($id),'purchaseItems'=>$items]);
+            'customer'=>$customer,
+            'purchases'=>$purchases,
+            'purchaseItems'=>$items,
+            'totalSpent'=>$totalSpent,
+            'productSearch'=>$search,
+            'productPurchases'=>$productPurchases,
+            'purchasedProductNames'=>$purchasedProductNames,
+            'reportError'=>$reportError,
+            'fromDate'=>$fromDate,
+            'toDate'=>$toDate,
+        ]);
+    }
+
+    private function isReportDate(string $date): bool
+    {
+        $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        return $parsed !== false
+            && $parsed->format('Y-m-d') === $date
+            && \DateTimeImmutable::getLastErrors() === false;
     }
 
     public function logout(Request $req,Response $res): Response
