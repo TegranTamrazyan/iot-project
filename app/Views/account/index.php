@@ -9,29 +9,10 @@ $h = static fn($value) => htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
 $customer = $customer ?? [];
 $purchases = $purchases ?? [];
 $purchaseItems = $purchaseItems ?? [];
-$totalSpent = $totalSpent ?? 0;
-$productSearch = $productSearch ?? '';
-$productPurchases = $productPurchases ?? [];
-$purchasedProductNames = $purchasedProductNames ?? [];
-$reportError = $reportError ?? '';
-$fromDate = $fromDate ?? '';
-$toDate = $toDate ?? '';
-$purchaseCount = count($purchases);
-$chartPoints = [];
-$uniqueOrders = [];
-if ($productPurchases) {
-    $prices = array_map(static fn(array $purchase): float => (float)$purchase['unit_price'], $productPurchases);
-    $minimum = min($prices);
-    $maximum = max($prices);
-    $spread = max($maximum - $minimum, 1.0);
-    $lastIndex = count($prices) - 1;
-    foreach ($prices as $index => $price) {
-        $x = $lastIndex > 0 ? 35 + (530 * $index / $lastIndex) : 300;
-        $y = 145 - (120 * ($price - $minimum) / $spread);
-        $chartPoints[] = ['x' => $x, 'y' => $y, 'price' => $price, 'purchase' => $productPurchases[$index]];
-    }
-    $uniqueOrders = array_unique(array_column($productPurchases, 'order_id'));
-}
+$currentPage = $currentPage ?? 1;
+$pageCount = $pageCount ?? 1;
+$receiptCount = $receiptCount ?? count($purchases);
+$receiptsPerPage = $receiptsPerPage ?? 10;
 ?>
 <div class="container py-5">
     <?= FlashMessage::render() ?>
@@ -39,7 +20,7 @@ if ($productPurchases) {
         <div>
             <div class="text-uppercase small text-primary fw-bold">Customer portal</div>
             <h1 class="fw-bold mb-1">Hello, <?= $h($customer['customer_name']) ?></h1>
-            <p class="text-muted mb-0">Your membership and purchase reports in one place.</p>
+            <p class="text-muted mb-0">Your membership and receipt history.</p>
         </div>
         <form action="<?= BASE_URL ?>logout" method="post">
             <input type="hidden" name="csrf" value="<?= $h(CheckoutSecurity::csrfToken()) ?>">
@@ -76,105 +57,12 @@ if ($productPurchases) {
     </div>
 
     <section class="card store-card mb-4">
-        <div class="card-body p-4">
-            <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
-                <div>
-                    <h2 class="h4 fw-bold mb-1">Purchase report</h2>
-                    <p class="text-muted mb-0">Filter receipts and spending by purchase date, then search items in that period.</p>
-                </div>
-                <div class="text-end">
-                    <div class="small text-muted">Total spent in selected period</div>
-                    <div class="metric-number money">$<?= number_format((float)$totalSpent, 2) ?></div>
-                    <div class="small text-muted"><?= $purchaseCount ?> <?= $purchaseCount === 1 ? 'receipt' : 'receipts' ?></div>
-                </div>
+        <div class="card-body p-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
+            <div>
+                <h2 class="h4 fw-bold mb-1">Purchase report</h2>
+                <p class="text-muted mb-0">Review your spending and the products you purchased by date.</p>
             </div>
-
-            <form action="<?= BASE_URL ?>account" method="get" class="row g-3 align-items-end report-filter mb-4">
-                <div class="col-sm-6 col-lg-3">
-                    <label class="form-label" for="report-from">From</label>
-                    <input class="form-control" type="date" id="report-from" name="from" value="<?= $h($fromDate) ?>">
-                </div>
-                <div class="col-sm-6 col-lg-3">
-                    <label class="form-label" for="report-to">To</label>
-                    <input class="form-control" type="date" id="report-to" name="to" value="<?= $h($toDate) ?>">
-                </div>
-                <div class="col-sm-8 col-lg-4">
-                    <label class="form-label" for="report-item">Search purchased item</label>
-                    <input class="form-control" type="search" id="report-item" name="item" maxlength="100"
-                        value="<?= $h($productSearch) ?>" list="purchased-product-names" placeholder="Choose a purchased item">
-                    <datalist id="purchased-product-names">
-                        <?php foreach ($purchasedProductNames as $product): ?>
-                            <option value="<?= $h($product['product_name']) ?>">
-                            <?php endforeach; ?>
-                    </datalist>
-                </div>
-                <div class="col-sm-4 col-lg-2 d-flex gap-2">
-                    <button class="btn btn-primary flex-grow-1" type="submit">Apply</button>
-                    <a class="btn btn-outline-secondary" href="<?= BASE_URL ?>account" aria-label="Clear filters">Clear</a>
-                </div>
-            </form>
-
-            <?php if ($reportError !== ''): ?>
-                <div class="alert alert-danger" role="alert"><?= $h($reportError) ?></div>
-            <?php endif; ?>
-
-            <?php if ($productSearch !== '' && $reportError === ''): ?>
-                <div class="border rounded-3 p-3 p-md-4 mb-4 bg-white">
-                    <h3 class="h5 fw-bold mb-1">Item price history: <?= $h($productPurchases[0]['product_name'] ?? $productSearch) ?></h3>
-                    <?php if (!$productPurchases): ?>
-                        <p class="text-muted mb-0">No matching purchases were found in this period.</p>
-                    <?php else: ?>
-                        <p class="text-muted mb-3">Purchased <?= count($uniqueOrders) ?> <?= count($uniqueOrders) === 1 ? 'time' : 'times' ?> in the selected period.</p>
-                        <div class="report-chart mb-3">
-                            <svg viewBox="0 0 600 190" role="img" aria-labelledby="price-chart-title price-chart-description">
-                                <title id="price-chart-title">Item price over purchase history</title>
-                                <desc id="price-chart-description">Prices at each purchase, from <?= $h($productPurchases[0]['created_at']) ?> to <?= $h($productPurchases[count($productPurchases) - 1]['created_at']) ?>.</desc>
-                                <line x1="30" y1="150" x2="570" y2="150" class="chart-axis"></line>
-                                <polyline points="<?php foreach ($chartPoints as $point): ?><?= number_format($point['x'], 1, '.', '') ?>,<?= number_format($point['y'], 1, '.', '') ?> <?php endforeach; ?>"
-                                    fill="none" class="chart-line"></polyline>
-                                <?php foreach ($chartPoints as $point): ?>
-                                    <circle cx="<?= number_format($point['x'], 1, '.', '') ?>" cy="<?= number_format($point['y'], 1, '.', '') ?>" r="5" class="chart-dot">
-                                        <title><?= $h($point['purchase']['created_at']) ?>: $<?= number_format($point['price'], 2) ?></title>
-                                    </circle>
-                                <?php endforeach; ?>
-                                <text x="30" y="177" class="chart-label"><?= $h((new DateTimeImmutable($productPurchases[0]['created_at']))->format('M j, Y')) ?></text>
-                                <text x="570" y="177" text-anchor="end" class="chart-label"><?= $h((new DateTimeImmutable($productPurchases[count($productPurchases) - 1]['created_at']))->format('M j, Y')) ?></text>
-                                <text x="35" y="20" class="chart-label">$<?= number_format($maximum, 2) ?></text>
-                                <text x="35" y="142" class="chart-label">$<?= number_format($minimum, 2) ?></text>
-                            </svg>
-                        </div>
-                        <div class="table-responsive">
-                            <table class="table align-middle mb-0">
-                                <thead>
-                                    <tr>
-                                        <th scope="col">Date &amp; time</th>
-                                        <th scope="col">Quantity</th>
-                                        <th scope="col">Price each</th>
-                                        <th scope="col">Change</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php $previousPrice = null;
-                                    foreach ($productPurchases as $purchase):
-                                        $price = (float)$purchase['unit_price'];
-                                        $change = $previousPrice === null ? null : $price - $previousPrice;
-                                        $previousPrice = $price;
-                                    ?>
-                                        <tr>
-                                            <td><?= $h((new DateTimeImmutable($purchase['created_at']))->format('Y-m-d \@ H:i')) ?></td>
-                                            <td><?= (int)$purchase['quantity'] ?></td>
-                                            <td class="money">$<?= number_format($price, 2) ?></td>
-                                            <td class="money <?= $change !== null && $change > 0 ? 'text-danger' : 'text-success' ?>">
-                                                <?= $change === null ? '—' : (($change > 0 ? '+' : '') . '$' . number_format($change, 2)) ?>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    <?php endif; ?>
-                </div>
-            <?php endif; ?>
+            <a class="btn btn-primary" href="<?= BASE_URL ?>account/report">View purchase report</a>
         </div>
     </section>
 
@@ -182,7 +70,7 @@ if ($productPurchases) {
         <div class="card-body p-4">
             <h2 class="h4 fw-bold mb-3">Receipt history</h2>
             <?php if (!$purchases): ?>
-                <p class="text-muted mb-0"><?= $reportError !== '' ? 'Receipts cannot be shown until the filters are corrected.' : 'No receipts found for this period.' ?></p>
+                <p class="text-muted mb-0">No receipts found.</p>
             <?php else: ?>
                 <?php foreach ($purchases as $order): ?>
                     <article class="receipt-entry py-4 border-top">
@@ -232,6 +120,39 @@ if ($productPurchases) {
                         </form>
                     </article>
                 <?php endforeach; ?>
+                <?php if ($pageCount > 1): ?>
+                    <nav class="mt-4" aria-label="Receipt pages">
+                        <ul class="pagination justify-content-center flex-wrap mb-0">
+                            <li class="page-item <?= $currentPage <= 1 ? 'disabled' : '' ?>">
+                                <?php if ($currentPage > 1): ?>
+                                    <a class="page-link" href="<?= BASE_URL ?>account?page=<?= $currentPage - 1 ?>" aria-label="Previous page">Previous</a>
+                                <?php else: ?>
+                                    <span class="page-link">Previous</span>
+                                <?php endif; ?>
+                            </li>
+                            <?php for ($pageNumber = 1; $pageNumber <= $pageCount; $pageNumber++): ?>
+                                <li class="page-item <?= $pageNumber === $currentPage ? 'active' : '' ?>">
+                                    <?php if ($pageNumber === $currentPage): ?>
+                                        <span class="page-link" aria-current="page"><?= $pageNumber ?></span>
+                                    <?php else: ?>
+                                        <a class="page-link" href="<?= BASE_URL ?>account?page=<?= $pageNumber ?>"><?= $pageNumber ?></a>
+                                    <?php endif; ?>
+                                </li>
+                            <?php endfor; ?>
+                            <li class="page-item <?= $currentPage >= $pageCount ? 'disabled' : '' ?>">
+                                <?php if ($currentPage < $pageCount): ?>
+                                    <a class="page-link" href="<?= BASE_URL ?>account?page=<?= $currentPage + 1 ?>" aria-label="Next page">Next</a>
+                                <?php else: ?>
+                                    <span class="page-link">Next</span>
+                                <?php endif; ?>
+                            </li>
+                        </ul>
+                        <p class="text-muted text-center small mt-2 mb-0">
+                            Showing <?= min(($currentPage - 1) * $receiptsPerPage + 1, $receiptCount) ?>–<?= min($currentPage * $receiptsPerPage, $receiptCount) ?>
+                            of <?= $receiptCount ?> <?= $receiptCount === 1 ? 'receipt' : 'receipts' ?>
+                        </p>
+                    </nav>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
     </section>

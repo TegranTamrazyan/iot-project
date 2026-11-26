@@ -12,5 +12,6 @@ body{font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:#1722
 .chart-axis{stroke:#dbe3eb;stroke-width:1}
 .chart-line{stroke:#2877a8;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
 .chart-dot{fill:#fff;stroke:#2877a8;stroke-width:3}
+.chart-bar{fill:#2877a8}
 .chart-label{fill:#60748c;font-size:12px}
 .receipt-entry:first-of-type{border-top:0!important}

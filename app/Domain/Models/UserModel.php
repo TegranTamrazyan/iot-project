@@ -51,7 +51,22 @@ class UserModel extends BaseModel
         throw new RuntimeException('Could not generate a membership number. Please retry.');
     }
 
-    public function purchases(int $customerId, ?string $fromDate = null, ?string $toDate = null): array
+    public function purchaseCount(int $customerId): int
+    {
+        $result = $this->selectOne(
+            'SELECT COUNT(*) AS total FROM checkout_orders WHERE customer_id=?',
+            [$customerId]
+        );
+        return (int)($result['total'] ?? 0);
+    }
+
+    public function purchases(
+        int $customerId,
+        ?string $fromDate = null,
+        ?string $toDate = null,
+        ?int $limit = null,
+        int $offset = 0
+    ): array
     {
         $sql = 'SELECT id,total,points_earned,created_at,status
                 FROM checkout_orders WHERE customer_id=?';
@@ -64,7 +79,11 @@ class UserModel extends BaseModel
             $sql .= ' AND created_at < DATE_ADD(?, INTERVAL 1 DAY)';
             $params[] = $toDate;
         }
-        return $this->selectAll($sql . ' ORDER BY created_at DESC,id DESC', $params);
+        $sql .= ' ORDER BY created_at DESC,id DESC';
+        if ($limit !== null) {
+            $sql .= ' LIMIT ' . max(1, $limit) . ' OFFSET ' . max(0, $offset);
+        }
+        return $this->selectAll($sql, $params);
     }
 
     public function purchasedItems(int $customerId, ?array $orderIds = null): array
@@ -83,6 +102,53 @@ class UserModel extends BaseModel
             $sql . ' ORDER BY oi.order_id DESC,oi.id',
             $params
         );
+    }
+
+    public function purchasedProductRowCount(
+        int $customerId,
+        ?string $fromDate = null,
+        ?string $toDate = null
+    ): int {
+        $sql = 'SELECT COUNT(*) AS total
+                FROM checkout_orders o
+                JOIN checkout_order_items oi ON oi.order_id=o.id
+                WHERE o.customer_id=?';
+        $params = [$customerId];
+        if ($fromDate !== null) {
+            $sql .= ' AND o.created_at >= ?';
+            $params[] = $fromDate . ' 00:00:00';
+        }
+        if ($toDate !== null) {
+            $sql .= ' AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)';
+            $params[] = $toDate;
+        }
+        $result = $this->selectOne($sql, $params);
+        return (int)($result['total'] ?? 0);
+    }
+
+    public function purchasedProductRows(
+        int $customerId,
+        ?string $fromDate = null,
+        ?string $toDate = null,
+        int $limit = 10,
+        int $offset = 0
+    ): array {
+        $sql = 'SELECT o.id AS order_id,o.created_at,oi.product_name,oi.quantity,oi.unit_price
+                FROM checkout_orders o
+                JOIN checkout_order_items oi ON oi.order_id=o.id
+                WHERE o.customer_id=?';
+        $params = [$customerId];
+        if ($fromDate !== null) {
+            $sql .= ' AND o.created_at >= ?';
+            $params[] = $fromDate . ' 00:00:00';
+        }
+        if ($toDate !== null) {
+            $sql .= ' AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)';
+            $params[] = $toDate;
+        }
+        $sql .= ' ORDER BY o.created_at DESC,o.id DESC,oi.id
+                  LIMIT ' . max(1, $limit) . ' OFFSET ' . max(0, $offset);
+        return $this->selectAll($sql, $params);
     }
 
     public function productPurchases(
