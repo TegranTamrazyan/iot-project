@@ -261,6 +261,86 @@ class CheckoutModel extends BaseModel
         );
     }    
 
+    public function customerActivity(string $fromDate, string $toDate): array
+    {
+        $summary = $this->selectOne(
+            'SELECT COUNT(DISTINCT period_orders.customer_id) AS total_customers,
+                    COUNT(DISTINCT CASE
+                        WHEN first_orders.first_purchase_at >= ?
+                         AND first_orders.first_purchase_at < DATE_ADD(?, INTERVAL 1 DAY)
+                        THEN period_orders.customer_id
+                    END) AS new_customers,
+                    COUNT(DISTINCT CASE
+                        WHEN first_orders.first_purchase_at < ?
+                        THEN period_orders.customer_id
+                    END) AS returning_customers
+             FROM checkout_orders period_orders
+             JOIN (
+                 SELECT customer_id, MIN(created_at) AS first_purchase_at
+                 FROM checkout_orders
+                 WHERE customer_id IS NOT NULL
+                 GROUP BY customer_id
+             ) first_orders ON first_orders.customer_id = period_orders.customer_id
+             WHERE period_orders.created_at >= ?
+               AND period_orders.created_at < DATE_ADD(?, INTERVAL 1 DAY)',
+            [$fromDate, $toDate, $fromDate, $fromDate, $toDate]
+        );
+
+        $dailyRows = $this->selectAll(
+            'SELECT DATE(created_at) AS purchase_date,
+                    COUNT(DISTINCT customer_id) AS customer_count
+             FROM checkout_orders
+             WHERE customer_id IS NOT NULL
+               AND created_at >= ?
+               AND created_at < DATE_ADD(?, INTERVAL 1 DAY)
+             GROUP BY DATE(created_at)
+             ORDER BY purchase_date',
+            [$fromDate, $toDate]
+        );
+
+        $countsByDate = [];
+        foreach ($dailyRows as $row) {
+            $countsByDate[(string)$row['purchase_date']] = (int)$row['customer_count'];
+        }
+
+        $dailyActivity = [];
+        $from = new \DateTimeImmutable($fromDate);
+        $to = new \DateTimeImmutable($toDate);
+        for ($date = $from; $date <= $to; $date = $date->modify('+1 day')) {
+            $dateLabel = $date->format('Y-m-d');
+            $dailyActivity[] = [
+                'date' => $dateLabel,
+                'customer_count' => $countsByDate[$dateLabel] ?? 0,
+            ];
+        }
+
+        $totalCustomers = (int)($summary['total_customers'] ?? 0);
+        $busiestDay = null;
+        $leastBusyDay = null;
+        if ($totalCustomers > 0) {
+            $busiestDay = $dailyActivity[0];
+            $leastBusyDay = $dailyActivity[0];
+            foreach ($dailyActivity as $day) {
+                if ($day['customer_count'] > $busiestDay['customer_count']) {
+                    $busiestDay = $day;
+                }
+                if ($day['customer_count'] < $leastBusyDay['customer_count']) {
+                    $leastBusyDay = $day;
+                }
+            }
+        }
+
+        return [
+            'totalCustomers' => $totalCustomers,
+            'newCustomers' => (int)($summary['new_customers'] ?? 0),
+            'returningCustomers' => (int)($summary['returning_customers'] ?? 0),
+            'dailyActivity' => $dailyActivity,
+            'busiestDay' => $busiestDay,
+            'leastBusyDay' => $leastBusyDay,
+        ];
+    }
+
+
     // list all products with current stock level and associated epcs
     public function allProducts(): array
     {

@@ -20,6 +20,7 @@ $page_title=$page_title??'IOT Smart Store';
    <?php if (!empty($_SESSION['is_admin'])): ?>
     <a class="btn btn-sm btn-outline-light" href="<?= BASE_URL ?>fridge-dashboard">Fridges</a>
     <a class="btn btn-sm btn-outline-light" href="<?= BASE_URL ?>product">Products</a>
+    <a class="btn btn-sm btn-outline-light" href="<?= BASE_URL ?>product/customer-activity">Customer Activity</a>
     <?php else: ?>
     <a class="btn btn-sm btn-outline-secondary" href="<?= BASE_URL ?>fridge-dashboard">Fridges</a>
     <a class="btn btn-sm btn-outline-secondary" href="<?= BASE_URL ?>product">Products</a>

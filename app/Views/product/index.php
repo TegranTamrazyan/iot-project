@@ -28,8 +28,9 @@ $categories = [
 
 <div class="container my-4" style="max-width: 1200px;">
 
-    <section class="store-hero p-4 p-md-5 mb-4">
+    <section class="store-hero p-4 p-md-5 mb-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
         <h1 class="fw-bold display-6 mb-0">Product Management</h1>
+        <a class="btn btn-primary" href="<?= BASE_URL ?>product/customer-activity">Customer Activity Report</a>
     </section>
 
     <p class="text-muted">

@@ -6,6 +6,7 @@ use App\Controllers\AboutController;
 use App\Controllers\UserController;
 use App\Controllers\FridgeDashboardController;
 use App\Controllers\CheckoutController;
+use App\Controllers\CustomerActivityReportController;
 use App\Controllers\ProductController;
 use App\Helpers\Core\DateTimeHelper;
 use App\Middleware\AdminMiddleware;
@@ -75,6 +76,8 @@ return static function (Slim\App $app): void {
     // Product management (admin only)
     $app->group('/product', function($group) {
         $group->get('', [ProductController::class, 'index']);
+        $group->get('/customer-activity', [CustomerActivityReportController::class, 'index'])
+            ->setName('product.customer-activity');
         $group->post('/create', [ProductController::class, 'create']);
         $group->get('/edit/{id}', [ProductController::class, 'edit']);
         $group->post('/edit/{id}', [ProductController::class, 'update']);
