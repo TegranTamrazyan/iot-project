@@ -1,103 +1,236 @@
+
 <?php
 
 use App\Helpers\ViewHelper;
-
-$thresholds = $thresholds ?? ['Frig1' => 5.0, 'Frig2' => 5.0];
-$data_url = $data_url ?? BASE_URL . 'fridge-dashboard/data';
-$fan_url = $fan_url ?? BASE_URL . 'fridge-dashboard/fan';
-$threshold_url = $threshold_url ?? BASE_URL . 'fridge-dashboard/threshold';
+use App\Helpers\Core\FlashMessage;
 
 ViewHelper::loadHeader('Fridge Dashboard');
+
+$h = static fn($value) => htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+
+$data_url = BASE_URL . 'fridge-dashboard/data';
+
 ?>
 
 <div class="container my-4" style="max-width: 1100px;">
-    <h2 class="mb-2">Fridge Dashboard</h2>
-    <p class="text-muted">Live readings from both refrigerators. The dashboard refreshes every three seconds.</p>
+
+    <?= FlashMessage::render() ?>
 
     <?php if (isset($_SESSION['error'])): ?>
-        <div class="alert alert-warning alert-dismissible fade show" role="alert">
-            <?= htmlspecialchars((string) $_SESSION['error'], ENT_QUOTES, 'UTF-8') ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <div class="alert alert-danger">
+            <?= $h($_SESSION['error']) ?>
         </div>
         <?php unset($_SESSION['error']); ?>
     <?php endif; ?>
 
     <?php if (isset($_SESSION['success'])): ?>
-        <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <?= htmlspecialchars((string) $_SESSION['success'], ENT_QUOTES, 'UTF-8') ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <div class="alert alert-success">
+            <?= $h($_SESSION['success']) ?>
         </div>
         <?php unset($_SESSION['success']); ?>
     <?php endif; ?>
 
-    <div id="notification" class="alert alert-danger" role="status" style="display: none;"></div>
+    <h2 class="text-center fw-light mb-3">Sensor Readings</h2>
 
-    <h4 class="mt-4 mb-3">Sensor readings</h4>
     <div class="row g-3">
-        <?php foreach (['Frig1' => 'Refrigerator 1', 'Frig2' => 'Refrigerator 2'] as $fridge => $label): ?>
+
+        <?php foreach (['Frig1', 'Frig2'] as $fridge): ?>
+
+            <?php
+                $reading = $fridges[$fridge];
+                $temperature = $reading['temperature'];
+                $humidity = $reading['humidity'];
+                $threshold = $thresholds[$fridge] ?? 5.0;
+            ?>
+
             <div class="col-md-6">
                 <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></h5>
-                        <p class="mb-1">Temperature</p>
-                        <h3 id="<?= $fridge ?>-temp">-- °C</h3>
-                        <p class="mb-1">Humidity</p>
-                        <h3 id="<?= $fridge ?>-humidity">-- %</h3>
-                        <p class="mb-1">Temperature threshold</p>
-                        <p><strong><span id="<?= $fridge ?>-threshold"><?= htmlspecialchars((string) ($thresholds[$fridge] ?? 5.0), ENT_QUOTES, 'UTF-8') ?></span> °C</strong></p>
-                        <p id="<?= $fridge ?>-status" class="text-muted mb-0">Waiting for sensor data...</p>
+                    <div class="card-body p-4">
+
+                        <h3 class="fw-light mb-3"><?= $h($fridge) ?></h3>
+
+                        <p>
+                            Temperature:
+                            <span id="<?= $fridge ?>-temp">
+                                <?= $temperature !== null
+                                    ? number_format((float) $temperature, 1) . ' °C'
+                                    : '-- °C' ?>
+                            </span>
+                        </p>
+
+                        <p>
+                            Humidity:
+                            <span id="<?= $fridge ?>-humidity">
+                                <?= $humidity !== null
+                                    ? number_format((float) $humidity, 1) . ' %'
+                                    : '-- %' ?>
+                            </span>
+                        </p>
+
+                        <p>
+                            Threshold:
+                            <span id="<?= $fridge ?>-threshold">
+                                <?= number_format((float) $threshold, 1) ?> °C
+                            </span>
+                        </p>
+
+                        <p
+                            id="<?= $fridge ?>-status"
+                            class="<?= $temperature === null
+                                ? 'text-muted'
+                                : ($temperature > $threshold ? 'text-danger' : 'text-muted') ?>"
+                        >
+                            <?= $temperature === null
+                                ? 'No sensor data'
+                                : ($temperature > $threshold ? 'Temperature too high!' : 'Temperature OK') ?>
+                        </p>
+
+                        <form
+                            method="POST"
+                            action="<?= $h($threshold_url) ?>"
+                            class="d-flex align-items-center flex-wrap gap-1"
+                        >
+                            <input
+                                type="hidden"
+                                name="fridge"
+                                value="<?= $h($fridge) ?>"
+                            >
+
+                            <input
+                                type="number"
+                                class="form-control form-control-sm"
+                                name="threshold"
+                                step="0.1"
+                                min="-20"
+                                max="30"
+                                value="<?= $h($threshold) ?>"
+                                style="width: 210px;"
+                                required
+                            >
+
+                            <button class="btn btn-primary btn-sm" type="submit">
+                                Save Threshold
+                            </button>
+
+                        </form>
+
                     </div>
                 </div>
             </div>
+
         <?php endforeach; ?>
 
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Fan status</h5>
-                    <h3 id="fan-status">OFF</h3>
-                    <p class="text-muted">The Raspberry Pi applies the saved fan state.</p>
-                    <div class="d-flex flex-wrap gap-2">
-                        <form method="POST" action="<?= htmlspecialchars($fan_url, ENT_QUOTES, 'UTF-8') ?>">
-                            <input type="hidden" name="command" value="ON">
-                            <button class="btn btn-success" type="submit">Turn fan ON</button>
-                        </form>
-                        <form method="POST" action="<?= htmlspecialchars($fan_url, ENT_QUOTES, 'UTF-8') ?>">
-                            <input type="hidden" name="command" value="OFF">
-                            <button class="btn btn-secondary" type="submit">Turn fan OFF</button>
-                        </form>
-                    </div>
+        <div class="col-md-6 mx-auto">
+            <div class="card h-100">
+                <div class="card-body p-4">
+
+                    <h3 class="fw-light mb-3">Bluetooth Refrigerator</h3>
+
+                    <p>
+                        Temperature:
+                        <span id="bluetooth-temp">
+                            <?= isset($bluetooth['temperature'])
+                                ? number_format((float) $bluetooth['temperature'], 1) . ' °C'
+                                : '-- °C' ?>
+                        </span>
+                    </p>
+
+                    <p>
+                        Humidity:
+                        <span id="bluetooth-humidity">
+                            <?= isset($bluetooth['humidity'])
+                                ? number_format((float) $bluetooth['humidity'], 1) . ' %'
+                                : '-- %' ?>
+                        </span>
+                    </p>
+
+                    <p class="text-muted mb-0">
+                        Last Reading:
+                        <span id="bluetooth-time">
+                            <?= $h($bluetooth['recorded_at'] ?? '--') ?>
+                        </span>
+                    </p>
+
                 </div>
             </div>
         </div>
+
     </div>
 
-    <h4 class="mt-4 mb-3">Temperature thresholds</h4>
-    <div class="row g-3">
-        <?php foreach (['Frig1' => 'Refrigerator 1', 'Frig2' => 'Refrigerator 2'] as $fridge => $label): ?>
-            <div class="col-md-6">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="card-title"><?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?></h5>
-                        <form method="POST" action="<?= htmlspecialchars($threshold_url, ENT_QUOTES, 'UTF-8') ?>">
-                            <input type="hidden" name="fridge" value="<?= htmlspecialchars($fridge, ENT_QUOTES, 'UTF-8') ?>">
-                            <div class="mb-3">
-                                <label class="form-label" for="threshold-<?= $fridge ?>">Maximum temperature (°C)</label>
-                                <input class="form-control" id="threshold-<?= $fridge ?>" type="number" name="threshold" step="0.1" min="-20" max="30" value="<?= htmlspecialchars((string) ($thresholds[$fridge] ?? 5.0), ENT_QUOTES, 'UTF-8') ?>" required>
-                            </div>
-                            <button class="btn btn-primary" type="submit">Save threshold</button>
-                        </form>
-                    </div>
-                </div>
+    <h2 class="text-center fw-light mt-4 mb-3">Fan Control</h2>
+
+    <div
+        id="fan-box"
+        class="card mx-auto"
+        style="max-width: 550px; background-color: <?= $fanStatus === 'ON' ? '#198754' : '#842029' ?> !important; border-color: <?= $fanStatus === 'ON' ? '#198754' : '#842029' ?> !important;"
+    >
+        <div
+            id="fan-body"
+            class="card-body text-center p-4"
+            style="background-color: <?= $fanStatus === 'ON' ? '#105736' : '#842029' ?> !important; color: white !important;"
+        >
+
+            <p class="mb-2">Fan Status:</p>
+
+            <h3 class="mb-3">
+                <span
+                    id="fan-status"
+                    class="badge bg-light <?= $fanStatus === 'ON' ? 'text-success' : 'text-danger' ?>"
+                >
+                    <?= $h($fanStatus) ?>
+                </span>
+            </h3>
+
+            <div class="d-flex justify-content-center gap-2">
+
+                <form method="POST" action="<?= $h($fan_url) ?>">
+                    <input type="hidden" name="command" value="ON">
+
+                    <button class="btn btn-success" type="submit">
+                        Turn Fan ON
+                    </button>
+                </form>
+
+                <form method="POST" action="<?= $h($fan_url) ?>">
+                    <input type="hidden" name="command" value="OFF">
+
+                    <button class="btn btn-danger" type="submit">
+                        Turn Fan OFF
+                    </button>
+                </form>
+
             </div>
-        <?php endforeach; ?>
+
+        </div>
     </div>
 
-    <h4 class="mt-4 mb-3">Temperature warnings</h4>
-    <div id="alerts" class="d-flex flex-column gap-2">
-        <p class="text-muted">Checking current temperatures...</p>
+    <h2 class="text-center fw-light mt-4 mb-3">Temperature Warnings</h2>
+
+    <div id="alerts">
+
+        <?php if (empty($alerts)): ?>
+
+            <p class="text-success text-center">
+                No current temperature warnings.
+            </p>
+
+        <?php else: ?>
+
+            <?php foreach ($alerts as $alert): ?>
+                <div class="alert alert-danger">
+                    <?= $h($alert) ?>
+                </div>
+            <?php endforeach; ?>
+
+        <?php endif; ?>
+
     </div>
-    <p class="text-muted mt-3" id="updated-at">Waiting for first update...</p>
+
+    <p class="text-muted text-center mt-4">
+        Last dashboard update:
+        <span id="updated-at"><?= date('Y-m-d H:i:s') ?></span>
+    </p>
+
 </div>
 
 <script>
@@ -105,61 +238,124 @@ const fridgeDashboardDataUrl = <?= json_encode($data_url, JSON_UNESCAPED_SLASHES
 
 async function refreshFridgeDashboard() {
     try {
-        const response = await fetch(fridgeDashboardDataUrl, { cache: 'no-store' });
+        const response = await fetch(fridgeDashboardDataUrl, {
+            cache: 'no-store'
+        });
+
         if (!response.ok) {
             throw new Error('HTTP ' + response.status);
         }
 
         const data = await response.json();
 
+        // Update both DHT11 refrigerators.
         for (const fridge of ['Frig1', 'Frig2']) {
             const item = data.fridges[fridge];
-            document.getElementById(fridge + '-temp').textContent = item.temperature === null ? '-- °C' : Number(item.temperature).toFixed(1) + ' °C';
-            document.getElementById(fridge + '-humidity').textContent = item.humidity === null ? '-- %' : Number(item.humidity).toFixed(1) + ' %';
-            document.getElementById(fridge + '-threshold').textContent = Number(item.threshold).toFixed(1);
+
+            if (!item) {
+                continue;
+            }
+
+            document.getElementById(fridge + '-temp').textContent =
+                item.temperature === null
+                    ? '-- °C'
+                    : Number(item.temperature).toFixed(1) + ' °C';
+
+            document.getElementById(fridge + '-humidity').textContent =
+                item.humidity === null
+                    ? '-- %'
+                    : Number(item.humidity).toFixed(1) + ' %';
+
+            document.getElementById(fridge + '-threshold').textContent =
+                Number(item.threshold).toFixed(1) + ' °C';
 
             const status = document.getElementById(fridge + '-status');
+
             if (item.temperature === null) {
-                status.textContent = 'No sensor data received yet.';
-                status.className = 'text-muted mb-0';
+                status.textContent = 'No sensor data';
+                status.className = 'text-muted';
+
             } else if (Number(item.temperature) > Number(item.threshold)) {
-                status.textContent = 'Temperature is above the threshold.';
-                status.className = 'text-danger fw-bold mb-0';
+                status.textContent = 'Temperature too high!';
+                status.className = 'text-danger';
+
             } else {
-                status.textContent = 'Temperature is within the threshold.';
-                status.className = 'text-success fw-bold mb-0';
+                status.textContent = 'Temperature OK';
+                status.className = 'text-muted';
             }
         }
 
-        document.getElementById('fan-status').textContent = data.fan_status === 'ON' ? 'ON' : 'OFF';
+        // Update the Bluetooth refrigerator.
+        const bluetooth = data.bluetooth ?? {};
 
+        document.getElementById('bluetooth-temp').textContent =
+            bluetooth.temperature == null
+                ? '-- °C'
+                : Number(bluetooth.temperature).toFixed(1) + ' °C';
+
+        document.getElementById('bluetooth-humidity').textContent =
+            bluetooth.humidity == null
+                ? '-- %'
+                : Number(bluetooth.humidity).toFixed(1) + ' %';
+
+        document.getElementById('bluetooth-time').textContent =
+            bluetooth.recorded_at ?? '--';
+
+        // Update the fan status and both background colors.
+        const fanOn = data.fan_status === 'ON';
+
+        const fanStatus = document.getElementById('fan-status');
+        const fanBox = document.getElementById('fan-box');
+        const fanBody = document.getElementById('fan-body');
+
+        fanStatus.textContent = fanOn ? 'ON' : 'OFF';
+
+        fanStatus.className =
+            'badge bg-light ' + (fanOn ? 'text-success' : 'text-danger');
+
+        fanBox.style.setProperty(
+            'background-color',
+            fanOn ? '#198754' : '#842029',
+            'important'
+        );
+
+        fanBox.style.setProperty(
+            'border-color',
+            fanOn ? '#198754' : '#842029',
+            'important'
+        );
+
+        fanBody.style.setProperty(
+            'background-color',
+            fanOn ? '#105736' : '#842029',
+            'important'
+        );
+
+        // Update temperature warnings.
         const alerts = document.getElementById('alerts');
         alerts.replaceChildren();
+
         if (!data.alerts.length) {
             const message = document.createElement('p');
-            message.className = 'text-success';
+            message.className = 'text-success text-center';
             message.textContent = 'No current temperature warnings.';
             alerts.appendChild(message);
+
         } else {
             for (const alert of data.alerts) {
                 const message = document.createElement('div');
-                message.className = 'alert alert-danger mb-0';
-                message.textContent = alert.message + ' Current temperature: ' + Number(alert.temperature).toFixed(1) + ' °C; threshold: ' + Number(alert.threshold_value).toFixed(1) + ' °C.';
+                message.className = 'alert alert-danger';
+                message.textContent = alert.message;
                 alerts.appendChild(message);
             }
         }
 
-        const notification = document.getElementById('notification');
-        if (data.alerts.length) {
-            notification.textContent = 'Temperature warning: ' + data.alerts.map(alert => alert.fridge).join(', ') + ' is above the configured threshold.';
-            notification.style.display = 'block';
-        } else {
-            notification.style.display = 'none';
-        }
+        // Update the timestamp without reloading the page.
+        document.getElementById('updated-at').textContent =
+            new Date().toLocaleString();
 
-        document.getElementById('updated-at').textContent = 'Last dashboard update: ' + new Date().toLocaleTimeString();
     } catch (error) {
-        document.getElementById('updated-at').textContent = 'Could not load dashboard data. Check the PHP and database configuration.';
+        console.error('Dashboard refresh failed:', error);
     }
 }
 

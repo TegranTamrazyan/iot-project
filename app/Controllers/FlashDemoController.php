@@ -2,7 +2,7 @@
 
 namespace App\Controllers;
 
-use App\Helpers\FlashMessage;
+use App\Helpers\Core\FlashMessage;
 use DI\Container;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;

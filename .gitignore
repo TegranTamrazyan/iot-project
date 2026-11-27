@@ -1,48 +1,59 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+!.env.sample
 env.php
 config/env.php
-# Documentation files to exclude from version control
-# docs/Custom_404_page_implementation.md
+*.local
 
-# Composer and dependencies
+# PHP dependencies and generated output
 vendor/
-build/
 node_modules/
+build/
+dist/
+.phpunit.cache/
+.phpunit.result.cache
+.php_cs.cache
+coverage/
 
-# VisualStudioCode
-# Local History for Visual Studio Code
-.history/
-*.code-workspace
-#.vscode
-#.venv
+# Python environments, bytecode and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+*.egg-info/
 
-# Directories holding app-generated files.
-# Keep the logs/ directory
-!var/logs/
+# Runtime output (keep directory placeholders)
 var/logs/*
 !var/logs/.htaccess
-# Keep the tmp/ directory
-!var/tmp/
 var/tmp/*
 !var/tmp/.htaccess
-
-# Keep the cache/ directory
-!cache/tmp/
 cache/tmp/*
 !cache/tmp/.htaccess
+*.log
+*.pid
+*.sqlite-journal
 
-# IDEs
+# Editor and operating-system files
 .idea/
-nbproject/
-.DS_STORE
-cache.properties
-.php_cs.cache
+.vscode/*
+!.vscode/extensions.json
+.history/
+*.code-workspace
+.DS_Store
+Thumbs.db
+ehthumbs.db
+*.swp
+*.swo
+*~
 
-.phpunit.result.cache
-.phpunit.cache/
-phpunit.xml.bak
-package-lock.json
-
-# keys
+# Credentials and certificates
 *.pem
 *.key
 *.ppk
@@ -52,21 +63,31 @@ package-lock.json
 *.cer
 *.der
 
-# Windows thumbnail cache files
-Thumbs.db
-Thumbs.db:encryptable
-ehthumbs.db
-ehthumbs_vista.db
-# Dump file
+# Generated archives, backups and dumps
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.bak
+*.tmp
 *.stackdump
-# Recycle Bin used on file shares
-$RECYCLE.BIN/
-# Windows shortcuts
-*.lnk
 
+# Existing local-only test files
 app/Controllers/TestController.php
 app/Domain/Models/TestModel.php
 app/Views/testView.php
 docs/FileUploadHelper.php
 
-.venv
+# Local hardware / checkout artifacts
+**/.venv/
+**/__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+*.log
+*.sqlite3
+*.db
+.pytest_cache/
+.mypy_cache/
+coverage/

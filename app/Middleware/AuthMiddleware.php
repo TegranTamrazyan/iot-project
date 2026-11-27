@@ -20,13 +20,19 @@ class AuthMiddleware implements MiddlewareInterface
         ServerRequestInterface $request,
         RequestHandlerInterface $handler
     ): ResponseInterface {
-        $userData = SessionManager::get('user_data');
 
-        if (empty($userData['authenticated'])) {
-            FlashMessage::error('You must login before accessing that page');
+        if (empty($_SESSION['is_logged_in'])) {
+            FlashMessage::error('You must be logged in before accessing that page');
 
             $response = $this->responseFactory->createResponse(302);
             return $response->withHeader('Location', APP_BASE_URL . '/login');
+        }
+
+        if (empty($_SESSION['is_admin'])) {
+            FlashMessage::error('You must be an admin before accessing that page');
+
+            $response = $this->responseFactory->createResponse(302);
+            return $response->withHeader('Location', APP_BASE_URL . '/checkout');
         }
 
         return $handler->handle($request);

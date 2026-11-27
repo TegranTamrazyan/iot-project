@@ -19,20 +19,64 @@ class FridgeDashboardController extends BaseController
         parent::__construct($container);
     }
 
-    // Display the fridge dashboard.
+    
+    
+    // Display the dashboard using PHP.
     public function view_fridge_dashboard(Request $request, Response $response, array $args = []): Response
     {
-        return $this->render(
+        $thresholds = $this->fridgeDashboardModel->getThresholds();
+
+        $fridges = [
+            'Frig1' => ['temperature' => null, 'humidity' => null],
+            'Frig2' => ['temperature' => null, 'humidity' => null]
+        ];
+
+        foreach ($this->fridgeDashboardModel->getLatestReadings() as $row) {
+            $fridge = $row['fridge'];
+
+            if (isset($fridges[$fridge])) {
+                $fridges[$fridge]['temperature'] = (float) $row['temperature'];
+                $fridges[$fridge]['humidity'] = (float) $row['humidity'];
+            }
+        }
+
+        $bluetooth = $this->fridgeDashboardModel->getLatestBluetoothReading();
+        $fanStatus = $this->fridgeDashboardModel->getFanStatus();
+
+        $alerts = [];
+
+        foreach ($fridges as $fridge => $reading) {
+            $threshold = $thresholds[$fridge] ?? 5.0;
+
+            if (
+                $reading['temperature'] !== null &&
+                $reading['temperature'] > $threshold
+            ) {
+                $alerts[] = $fridge . ' is above its temperature threshold.';
+            }
+        }
+
+        $live = ($request->getQueryParams()['live'] ?? '1') !== '0';
+
+        $page = $this->render(
             $response,
-            'fridge_dashboard/fridge_dashboard_view.php',
+            'fridge_dashboard_view.php',
             [
-                'thresholds' => $this->fridgeDashboardModel->getThresholds(),
-                'data_url' => BASE_URL . 'fridge-dashboard/data',
+                'fridges' => $fridges,
+                'thresholds' => $thresholds,
+                'bluetooth' => $bluetooth,
+                'fanStatus' => $fanStatus,
+                'alerts' => $alerts,
+                'live' => $live,
                 'fan_url' => BASE_URL . 'fridge-dashboard/fan',
-                'threshold_url' => BASE_URL . 'fridge-dashboard/threshold',
+                'threshold_url' => BASE_URL . 'fridge-dashboard/threshold'
             ]
         );
+
+        return $page->withHeader('Cache-Control', 'no-store, max-age=0');
     }
+
+
 
     // Return current readings, fan state, and temperature warnings as JSON.
     public function get_dashboard_data(Request $request, Response $response, array $args = []): Response
@@ -51,6 +95,15 @@ class FridgeDashboardController extends BaseController
                     $fridges[$fridge]['recorded_at'] = $row['recorded_at'];
                 }
             }
+
+            // Retrieve the latest Bluetooth sensor reading.
+            $bluetoothReading = $this->fridgeDashboardModel->getLatestBluetoothReading();
+
+            $bluetooth = [
+                'temperature' => $bluetoothReading ? (float) $bluetoothReading['temperature'] : null,
+                'humidity' => $bluetoothReading ? (float) $bluetoothReading['humidity'] : null,
+                'recorded_at' => $bluetoothReading['recorded_at'] ?? null
+            ];
 
             foreach ($this->fridgeDashboardModel->getThresholds() as $fridge => $threshold) {
                 $fridges[$fridge]['threshold'] = $threshold;
@@ -71,6 +124,7 @@ class FridgeDashboardController extends BaseController
 
             $payload = [
                 'fridges' => $fridges,
+                'bluetooth' => $bluetooth,
                 'fan_status' => $this->fridgeDashboardModel->getFanStatus(),
                 'alerts' => $alerts,
             ];

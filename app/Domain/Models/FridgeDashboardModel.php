@@ -36,6 +36,22 @@ class FridgeDashboardModel extends BaseModel
 
         return $thresholds;
     }
+    
+
+    // Get the latest reading from the Bluetooth refrigerator.
+    public function getLatestBluetoothReading(): ?array
+    {
+        $reading = $this->selectOne("
+            SELECT temperature, humidity, recorded_at
+            FROM bluetooth_sensor_readings
+            ORDER BY id DESC
+            LIMIT 1
+        ");
+
+        return $reading ?: null;
+    }
+
+    
 
     public function getFanStatus(): string
     {
