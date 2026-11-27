@@ -7,7 +7,9 @@ use App\Controllers\UserController;
 use App\Controllers\FridgeDashboardController;
 use App\Controllers\CheckoutController;
 use App\Controllers\CustomerActivityReportController;
+use App\Controllers\InventoryReportController;
 use App\Controllers\ProductController;
+use App\Controllers\SalesReportController;
 use App\Helpers\Core\DateTimeHelper;
 use App\Middleware\AdminMiddleware;
 use App\Middleware\AuthMiddleware;
@@ -87,5 +89,13 @@ return static function (Slim\App $app): void {
         $group->post('/edit/{id}/scanner/activate', [ProductController::class, 'activateProductScanner']);
         $group->get('/edit/{id}/scanner/count', [ProductController::class, 'pendingRfidCount']);
         $group->post('/edit/{id}/epcs/clear', [ProductController::class, 'clearEpcs']);
+    })->add($adminMiddleware);
+
+    // Reports (admin only)
+    $app->group('/reports', function($group) {
+        $group->get('/inventory', [InventoryReportController::class, 'index'])
+            ->setName('reports.inventory');
+        $group->get('/sales', [SalesReportController::class, 'index'])
+            ->setName('reports.sales');
     })->add($adminMiddleware);
 };

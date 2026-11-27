@@ -31,6 +31,8 @@ $categories = [
     <section class="store-hero p-4 p-md-5 mb-4 d-flex justify-content-between align-items-center flex-wrap gap-3">
         <h1 class="fw-bold display-6 mb-0">Product Management</h1>
         <a class="btn btn-primary" href="<?= BASE_URL ?>product/customer-activity">Customer Activity Report</a>
+        <a class="btn btn-outline-primary" href="<?= BASE_URL ?>reports/inventory">Inventory Report</a>
+        <a class="btn btn-outline-primary" href="<?= BASE_URL ?>reports/sales">Sales Report</a>
     </section>
 
     <p class="text-muted">

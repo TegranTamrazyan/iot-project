@@ -341,6 +341,94 @@ class CheckoutModel extends BaseModel
     }
 
 
+    //! Inventory overview: current stock per product with last restock date
+    public function inventoryReport(?string $category = null): array
+    {
+        $sql = 'SELECT p.id, p.name, p.category, p.price, p.upc,
+                       COALESCE(s.in_stock, 0) AS in_stock,
+                       COALESCE(s.received_total, 0) AS received_total,
+                       COALESCE(s.sold_total, 0) AS sold_total,
+                       COALESCE(s.epcs_registered, 0) AS epcs_registered,
+                       (SELECT MAX(r.received_at)
+                        FROM checkout_stock_receptions r
+                        WHERE r.product_id = p.id) AS last_restocked
+                FROM checkout_products p
+                LEFT JOIN checkout_stock_summary s ON s.product_id = p.id
+                WHERE p.active = 1';
+
+        $params = [];
+        if ($category !== null && $category !== '') {
+            $sql .= ' AND p.category = ?';
+            $params[] = $category;
+        }
+
+        $sql .= ' ORDER BY p.name';
+
+        return $this->selectAll($sql, $params);
+    }
+
+    //! Distinct product categories for filter dropdowns
+    public function getProductCategories(): array
+    {
+        return $this->selectAll(
+            'SELECT DISTINCT category AS category
+             FROM checkout_products
+             WHERE active = 1
+             ORDER BY category'
+        );
+    }
+
+    //! Sold items per product within a date range, with revenue
+    public function salesReport(string $fromDate, string $toDate, ?string $category = null): array
+    {
+        $sql = 'SELECT p.id AS product_id, p.name, p.category,
+                       SUM(oi.quantity) AS quantity_sold,
+                       SUM(oi.quantity * oi.unit_price) AS revenue,
+                       COUNT(DISTINCT oi.order_id) AS order_count
+                FROM checkout_order_items oi
+                JOIN checkout_orders o ON o.id = oi.order_id
+                JOIN checkout_products p ON p.id = oi.product_id
+                WHERE o.created_at >= ?
+                  AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)';
+
+        $params = [$fromDate, $toDate];
+
+        if ($category !== null && $category !== '') {
+            $sql .= ' AND p.category = ?';
+            $params[] = $category;
+        }
+
+        $sql .= ' GROUP BY p.id, p.name, p.category
+                  ORDER BY quantity_sold DESC, p.name';
+
+        return $this->selectAll($sql, $params);
+    }
+
+    //! Daily revenue trend for line chart within a date range
+    public function dailyRevenue(string $fromDate, string $toDate, ?string $category = null): array
+    {
+        $sql = 'SELECT DATE(o.created_at) AS sale_date,
+                       SUM(oi.quantity * oi.unit_price) AS daily_revenue,
+                       SUM(oi.quantity) AS daily_items
+                FROM checkout_order_items oi
+                JOIN checkout_orders o ON o.id = oi.order_id
+                JOIN checkout_products p ON p.id = oi.product_id
+                WHERE o.created_at >= ?
+                  AND o.created_at < DATE_ADD(?, INTERVAL 1 DAY)';
+
+        $params = [$fromDate, $toDate];
+
+        if ($category !== null && $category !== '') {
+            $sql .= ' AND p.category = ?';
+            $params[] = $category;
+        }
+
+        $sql .= ' GROUP BY DATE(o.created_at)
+                  ORDER BY sale_date';
+
+        return $this->selectAll($sql, $params);
+    }
+
     // list all products with current stock level and associated epcs
     public function allProducts(): array
     {

@@ -63,7 +63,6 @@ class CustomerActivityReportController extends BaseController
     {
         $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $date);
         return $parsed !== false
-            && $parsed->format('Y-m-d') === $date
-            && \DateTimeImmutable::getLastErrors() === false;
+            && $parsed->format('Y-m-d') === $date;
     }
 }

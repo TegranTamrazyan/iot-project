@@ -21,9 +21,8 @@ $page_title=$page_title??'IOT Smart Store';
     <a class="btn btn-sm btn-outline-light" href="<?= BASE_URL ?>fridge-dashboard">Fridges</a>
     <a class="btn btn-sm btn-outline-light" href="<?= BASE_URL ?>product">Products</a>
     <a class="btn btn-sm btn-outline-light" href="<?= BASE_URL ?>product/customer-activity">Customer Activity</a>
-    <?php else: ?>
-    <a class="btn btn-sm btn-outline-secondary" href="<?= BASE_URL ?>fridge-dashboard">Fridges</a>
-    <a class="btn btn-sm btn-outline-secondary" href="<?= BASE_URL ?>product">Products</a>
+    <a class="btn btn-sm btn-outline-light" href="<?= BASE_URL ?>reports/inventory">Inventory Report</a>
+    <a class="btn btn-sm btn-outline-light" href="<?= BASE_URL ?>reports/sales">Sales Report</a>
    <?php endif; ?>
    <?php if (!empty($_SESSION['customer_id'])): ?>
     <a class="btn btn-sm btn-outline-light" href="<?= BASE_URL ?>account">My account</a>
